@@ -41,6 +41,7 @@ export interface StoreState {
   selectedMeteorite: Meteorite | null;
   isModalOpen: boolean;
   isAddModalOpen: boolean;
+  isCertificateArchiveOpen: boolean;
   isEditing: boolean;
   viewMode: ViewMode;
   setCategoryFilter: (category: string) => void;
@@ -51,6 +52,8 @@ export interface StoreState {
   closeModal: () => void;
   openAddModal: () => void;
   closeAddModal: () => void;
+  openCertificateArchive: () => void;
+  closeCertificateArchive: () => void;
   addMeteorite: (meteorite: Meteorite) => void;
   updateMeteorite: (id: string, updates: Partial<Meteorite>) => Meteorite | undefined;
   startEditing: () => void;

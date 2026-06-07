@@ -20,6 +20,7 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedMeteorite: null,
   isModalOpen: false,
   isAddModalOpen: false,
+  isCertificateArchiveOpen: false,
   isEditing: false,
   viewMode: 'list' as ViewMode,
 
@@ -52,6 +53,12 @@ export const useStore = create<StoreState>((set, get) => ({
 
   closeAddModal: () =>
     set({ isAddModalOpen: false }),
+
+  openCertificateArchive: () =>
+    set({ isCertificateArchiveOpen: true }),
+
+  closeCertificateArchive: () =>
+    set({ isCertificateArchiveOpen: false }),
 
   addMeteorite: (meteorite: Meteorite) =>
     set((state) => ({
