@@ -1,52 +1,88 @@
+import { useMemo } from 'react';
 import { Package, ShoppingCart, Clock, CheckCircle, Layers, Archive, Scale } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { SALE_STATUS_LABELS, METEORITE_CATEGORIES } from '@/types';
 
 const StatisticsDashboard = () => {
-  const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
-  const meteorites = getFilteredMeteorites();
-  const totalCount = meteorites.length;
+  const allMeteorites = useStore((state) => state.meteorites);
+  const filters = useStore((state) => state.filters);
 
-  const saleStatusCounts = {
-    available: meteorites.filter((m) => m.saleStatus === 'available').length,
-    reserved: meteorites.filter((m) => m.saleStatus === 'reserved').length,
-    sold: meteorites.filter((m) => m.saleStatus === 'sold').length,
-  };
+  const meteorites = useMemo(() => {
+    return allMeteorites.filter((meteorite) => {
+      const categoryMatch = filters.category === 'all' || meteorite.category === filters.category;
+      const weightMatch = meteorite.weight >= filters.minWeight && meteorite.weight <= filters.maxWeight;
+      const statusMatch = filters.saleStatus === 'all' || meteorite.saleStatus === filters.saleStatus;
+      return categoryMatch && weightMatch && statusMatch;
+    });
+  }, [allMeteorites, filters]);
 
-  const categoryCounts = METEORITE_CATEGORIES.map((category) => ({
-    name: category,
-    count: meteorites.filter((m) => m.category === category).length,
-  })).filter((c) => c.count > 0);
+  const stats = useMemo(() => {
+    const totalCount = meteorites.length;
+    const totalWeight = meteorites.reduce((sum, m) => sum + m.weight, 0);
 
-  const maxCategoryCount = Math.max(...categoryCounts.map((c) => c.count), 1);
+    const saleStatusCounts = {
+      available: meteorites.filter((m) => m.saleStatus === 'available').length,
+      reserved: meteorites.filter((m) => m.saleStatus === 'reserved').length,
+      sold: meteorites.filter((m) => m.saleStatus === 'sold').length,
+    };
 
-  const displayCaseMap = meteorites.reduce((acc, m) => {
-    const caseGroup = m.displayCase.split('-')[0];
-    acc[caseGroup] = (acc[caseGroup] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+    const categoryCounts = METEORITE_CATEGORIES.map((category) => ({
+      name: category,
+      count: meteorites.filter((m) => m.category === category).length,
+    })).filter((c) => c.count > 0);
 
-  const displayCaseCounts = Object.entries(displayCaseMap)
-    .map(([name, count]) => ({ name: `${name}组展柜`, count }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    const maxCategoryCount = Math.max(...categoryCounts.map((c) => c.count), 1);
 
-  const maxDisplayCaseCount = Math.max(...displayCaseCounts.map((c) => c.count), 1);
+    const displayCaseMap = meteorites.reduce((acc, m) => {
+      const caseGroup = m.displayCase.split('-')[0];
+      acc[caseGroup] = (acc[caseGroup] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-  const weightRanges = [
-    { label: '0-100g', min: 0, max: 100 },
-    { label: '100-500g', min: 100, max: 500 },
-    { label: '500-1000g', min: 500, max: 1000 },
-    { label: '1000g+', min: 1000, max: Infinity },
-  ];
+    const displayCaseCounts = Object.entries(displayCaseMap)
+      .map(([name, count]) => ({ name: `${name}组展柜`, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-  const weightCounts = weightRanges.map((range) => ({
-    ...range,
-    count: meteorites.filter((m) => m.weight >= range.min && m.weight < range.max).length,
-  }));
+    const maxDisplayCaseCount = Math.max(...displayCaseCounts.map((c) => c.count), 1);
 
-  const maxWeightCount = Math.max(...weightCounts.map((w) => w.count), 1);
+    const weightRanges = [
+      { label: '0-100g', min: 0, max: 100 },
+      { label: '100-500g', min: 100, max: 500 },
+      { label: '500-1000g', min: 500, max: 1000 },
+      { label: '1000g+', min: 1000, max: Infinity },
+    ];
 
-  const totalWeight = meteorites.reduce((sum, m) => sum + m.weight, 0);
+    const weightCounts = weightRanges.map((range) => ({
+      ...range,
+      count: meteorites.filter((m) => m.weight >= range.min && m.weight < range.max).length,
+    }));
+
+    const maxWeightCount = Math.max(...weightCounts.map((w) => w.count), 1);
+
+    return {
+      totalCount,
+      totalWeight,
+      saleStatusCounts,
+      categoryCounts,
+      maxCategoryCount,
+      displayCaseCounts,
+      maxDisplayCaseCount,
+      weightCounts,
+      maxWeightCount,
+    };
+  }, [meteorites]);
+
+  const {
+    totalCount,
+    totalWeight,
+    saleStatusCounts,
+    categoryCounts,
+    maxCategoryCount,
+    displayCaseCounts,
+    maxDisplayCaseCount,
+    weightCounts,
+    maxWeightCount,
+  } = stats;
 
   const StatCard = ({
     icon: Icon,
