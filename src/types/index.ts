@@ -1,5 +1,7 @@
 export type SaleStatus = 'available' | 'reserved' | 'sold';
 
+export type ViewMode = 'list' | 'displayCase';
+
 export type MeteoriteCategory = 
   | '普通球粒陨石'
   | '碳质球粒陨石'
@@ -39,6 +41,7 @@ export interface StoreState {
   selectedMeteorite: Meteorite | null;
   isModalOpen: boolean;
   isAddModalOpen: boolean;
+  viewMode: ViewMode;
   setCategoryFilter: (category: string) => void;
   setWeightFilter: (min: number, max: number) => void;
   setSaleStatusFilter: (status: SaleStatus | 'all') => void;
@@ -52,6 +55,7 @@ export interface StoreState {
   getFilteredMeteorites: () => Meteorite[];
   checkDuplicateId: (id: string) => boolean;
   searchByCertificateNumber: (certNumber: string) => Meteorite | undefined;
+  setViewMode: (mode: ViewMode) => void;
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [

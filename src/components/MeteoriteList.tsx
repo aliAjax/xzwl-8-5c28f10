@@ -3,15 +3,8 @@ import { useStore } from '@/store/useStore';
 import MeteoriteCard from './MeteoriteCard';
 
 const MeteoriteList = () => {
-  const allMeteorites = useStore((state) => state.meteorites);
-  const filters = useStore((state) => state.filters);
-  const meteorites = allMeteorites.filter((meteorite) => {
-    const categoryMatch = filters.category === 'all' || meteorite.category === filters.category;
-    const weightMatch = meteorite.weight >= filters.minWeight && meteorite.weight <= filters.maxWeight;
-    const statusMatch = filters.saleStatus === 'all' || meteorite.saleStatus === filters.saleStatus;
-
-    return categoryMatch && weightMatch && statusMatch;
-  });
+  const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
+  const meteorites = getFilteredMeteorites();
 
   if (meteorites.length === 0) {
     return (

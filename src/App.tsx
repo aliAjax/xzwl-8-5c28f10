@@ -3,10 +3,15 @@ import FilterPanel from '@/components/FilterPanel';
 import CertificateSearch from '@/components/CertificateSearch';
 import StatisticsDashboard from '@/components/StatisticsDashboard';
 import MeteoriteList from '@/components/MeteoriteList';
+import DisplayCaseView from '@/components/DisplayCaseView';
+import ViewToggle from '@/components/ViewToggle';
 import DetailModal from '@/components/DetailModal';
 import AddMeteoriteModal from '@/components/AddMeteoriteModal';
+import { useStore } from '@/store/useStore';
 
 function App() {
+  const viewMode = useStore((state) => state.viewMode);
+
   return (
     <div className="min-h-screen bg-archive-bg noise-overlay">
       <Header />
@@ -15,7 +20,8 @@ function App() {
       <StatisticsDashboard />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <MeteoriteList />
+        <ViewToggle />
+        {viewMode === 'list' ? <MeteoriteList /> : <DisplayCaseView />}
       </main>
 
       <footer className="border-t border-archive-gold/20 py-6 mt-12">

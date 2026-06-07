@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { StoreState, Meteorite, SaleStatus } from '@/types';
+import { StoreState, Meteorite, SaleStatus, ViewMode } from '@/types';
 import { mockMeteorites } from '@/data/mockData';
 
 const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
@@ -20,6 +20,7 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedMeteorite: null,
   isModalOpen: false,
   isAddModalOpen: false,
+  viewMode: 'list' as ViewMode,
 
   setCategoryFilter: (category: string) =>
     set((state) => ({
@@ -86,6 +87,9 @@ export const useStore = create<StoreState>((set, get) => ({
     const trimmed = certNumber.trim().toUpperCase();
     return meteorites.find((m) => m.certificateNumber.toUpperCase() === trimmed);
   },
+
+  setViewMode: (mode: ViewMode) =>
+    set({ viewMode: mode }),
 }));
 
 export { minWeight, maxWeight };
