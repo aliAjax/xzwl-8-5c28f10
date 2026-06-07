@@ -1,5 +1,6 @@
 import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
+import StatisticsDashboard from '@/components/StatisticsDashboard';
 import MeteoriteList from '@/components/MeteoriteList';
 import DetailModal from '@/components/DetailModal';
 import AddMeteoriteModal from '@/components/AddMeteoriteModal';
@@ -9,6 +10,7 @@ function App() {
     <div className="min-h-screen bg-archive-bg noise-overlay">
       <Header />
       <FilterPanel />
+      <StatisticsDashboard />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <MeteoriteList />
