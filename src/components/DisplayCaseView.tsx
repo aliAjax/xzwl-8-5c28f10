@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Inbox, Archive, Scale, Package } from 'lucide-react';
 import { Meteorite } from '@/types';
 import { useStore } from '@/store/useStore';
@@ -10,8 +11,13 @@ interface DisplayCaseGroup {
 }
 
 const DisplayCaseView = () => {
+  const meteoritesData = useStore((state) => state.meteorites);
+  const filters = useStore((state) => state.filters);
   const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
-  const filteredMeteorites = getFilteredMeteorites();
+
+  const filteredMeteorites = useMemo(() => {
+    return getFilteredMeteorites();
+  }, [meteoritesData, filters, getFilteredMeteorites]);
 
   const groupedByCase = filteredMeteorites.reduce<Record<string, DisplayCaseGroup>>((acc, meteorite) => {
     const caseKey = meteorite.displayCase || '未分组';

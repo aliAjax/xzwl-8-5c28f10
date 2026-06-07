@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { LayoutGrid, Archive } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { ViewMode } from '@/types';
@@ -5,8 +6,13 @@ import { ViewMode } from '@/types';
 const ViewToggle = () => {
   const viewMode = useStore((state) => state.viewMode);
   const setViewMode = useStore((state) => state.setViewMode);
+  const meteoritesData = useStore((state) => state.meteorites);
+  const filters = useStore((state) => state.filters);
   const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
-  const filteredMeteorites = getFilteredMeteorites();
+
+  const filteredMeteorites = useMemo(() => {
+    return getFilteredMeteorites();
+  }, [meteoritesData, filters, getFilteredMeteorites]);
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">

@@ -1,10 +1,16 @@
+import { useMemo } from 'react';
 import { Inbox } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import MeteoriteCard from './MeteoriteCard';
 
 const MeteoriteList = () => {
+  const meteoritesData = useStore((state) => state.meteorites);
+  const filters = useStore((state) => state.filters);
   const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
-  const meteorites = getFilteredMeteorites();
+
+  const meteorites = useMemo(() => {
+    return getFilteredMeteorites();
+  }, [meteoritesData, filters, getFilteredMeteorites]);
 
   if (meteorites.length === 0) {
     return (
