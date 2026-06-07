@@ -2,6 +2,7 @@ import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import MeteoriteList from '@/components/MeteoriteList';
 import DetailModal from '@/components/DetailModal';
+import AddMeteoriteModal from '@/components/AddMeteoriteModal';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
       </footer>
 
       <DetailModal />
+      <AddMeteoriteModal />
     </div>
   );
 }

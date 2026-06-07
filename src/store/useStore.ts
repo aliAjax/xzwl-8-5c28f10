@@ -19,6 +19,7 @@ export const useStore = create<StoreState>((set, get) => ({
   },
   selectedMeteorite: null,
   isModalOpen: false,
+  isAddModalOpen: false,
 
   setCategoryFilter: (category: string) =>
     set((state) => ({
@@ -43,6 +44,22 @@ export const useStore = create<StoreState>((set, get) => ({
 
   closeModal: () =>
     set({ selectedMeteorite: null, isModalOpen: false }),
+
+  openAddModal: () =>
+    set({ isAddModalOpen: true }),
+
+  closeAddModal: () =>
+    set({ isAddModalOpen: false }),
+
+  addMeteorite: (meteorite: Meteorite) =>
+    set((state) => ({
+      meteorites: [meteorite, ...state.meteorites],
+    })),
+
+  checkDuplicateId: (id: string) => {
+    const { meteorites } = get();
+    return meteorites.some((m) => m.id === id);
+  },
 
   resetFilters: () =>
     set({

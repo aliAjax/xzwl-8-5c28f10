@@ -38,14 +38,19 @@ export interface StoreState {
   filters: FilterState;
   selectedMeteorite: Meteorite | null;
   isModalOpen: boolean;
+  isAddModalOpen: boolean;
   setCategoryFilter: (category: string) => void;
   setWeightFilter: (min: number, max: number) => void;
   setSaleStatusFilter: (status: SaleStatus | 'all') => void;
   selectMeteorite: (meteorite: Meteorite | null) => void;
   openModal: (meteorite: Meteorite) => void;
   closeModal: () => void;
+  openAddModal: () => void;
+  closeAddModal: () => void;
+  addMeteorite: (meteorite: Meteorite) => void;
   resetFilters: () => void;
   getFilteredMeteorites: () => Meteorite[];
+  checkDuplicateId: (id: string) => boolean;
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [

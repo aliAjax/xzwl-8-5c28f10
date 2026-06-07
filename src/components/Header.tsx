@@ -1,8 +1,8 @@
-import { Gem, Archive } from 'lucide-react';
+import { Gem, Archive, Plus } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 const Header = () => {
-  const { meteorites, getFilteredMeteorites } = useStore();
+  const { meteorites, getFilteredMeteorites, openAddModal } = useStore();
   const filteredCount = getFilteredMeteorites().length;
   const totalCount = meteorites.length;
 
@@ -62,6 +62,16 @@ const Header = () => {
                 </div>
               </div>
             </div>
+
+            <div className="h-12 w-px bg-gradient-to-b from-transparent via-archive-gold/30 to-transparent" />
+
+            <button
+              onClick={openAddModal}
+              className="group flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-archive-gold to-archive-gold-light rounded-lg text-archive-bg font-semibold hover:shadow-lg hover:shadow-archive-gold/30 transition-all hover:scale-105"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">新增藏品</span>
+            </button>
           </div>
         </div>
       </div>
