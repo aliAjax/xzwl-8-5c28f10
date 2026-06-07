@@ -80,6 +80,12 @@ export const useStore = create<StoreState>((set, get) => ({
       return categoryMatch && weightMatch && statusMatch;
     });
   },
+
+  searchByCertificateNumber: (certNumber: string) => {
+    const { meteorites } = get();
+    const trimmed = certNumber.trim().toUpperCase();
+    return meteorites.find((m) => m.certificateNumber.toUpperCase() === trimmed);
+  },
 }));
 
 export { minWeight, maxWeight };

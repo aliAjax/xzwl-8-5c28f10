@@ -51,6 +51,7 @@ export interface StoreState {
   resetFilters: () => void;
   getFilteredMeteorites: () => Meteorite[];
   checkDuplicateId: (id: string) => boolean;
+  searchByCertificateNumber: (certNumber: string) => Meteorite | undefined;
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [
