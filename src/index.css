@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-archive-bg text-archive-cream font-body antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-archive-bg;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-archive-gold/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-archive-gold/50;
+  }
+}
+
+@layer components {
+  .archive-border {
+    @apply border border-archive-gold/20;
+  }
+
+  .gold-gradient-text {
+    @apply bg-gradient-to-r from-archive-gold via-archive-gold-light to-archive-gold bg-clip-text text-transparent;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-archive-gold/20 hover:border-archive-gold/60;
+  }
+
+  .gold-dashed-divider {
+    @apply border-t border-dashed border-archive-gold/30;
+  }
+
+  .noise-overlay {
+    position: relative;
+  }
+
+  .noise-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .file-tag {
+    @apply relative px-3 py-1 bg-archive-gold/10 text-archive-gold text-xs font-medium rounded-sm;
+  }
+
+  .file-tag::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    @apply bg-archive-gold;
+  }
+}
