@@ -41,6 +41,7 @@ export interface StoreState {
   selectedMeteorite: Meteorite | null;
   isModalOpen: boolean;
   isAddModalOpen: boolean;
+  isEditing: boolean;
   viewMode: ViewMode;
   setCategoryFilter: (category: string) => void;
   setWeightFilter: (min: number, max: number) => void;
@@ -51,9 +52,12 @@ export interface StoreState {
   openAddModal: () => void;
   closeAddModal: () => void;
   addMeteorite: (meteorite: Meteorite) => void;
+  updateMeteorite: (id: string, updates: Partial<Meteorite>) => Meteorite | undefined;
+  startEditing: () => void;
+  cancelEditing: () => void;
   resetFilters: () => void;
   getFilteredMeteorites: () => Meteorite[];
-  checkDuplicateId: (id: string) => boolean;
+  checkDuplicateId: (id: string, excludeId?: string) => boolean;
   searchByCertificateNumber: (certNumber: string) => Meteorite | undefined;
   setViewMode: (mode: ViewMode) => void;
 }

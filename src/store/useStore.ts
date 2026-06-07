@@ -20,6 +20,7 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedMeteorite: null,
   isModalOpen: false,
   isAddModalOpen: false,
+  isEditing: false,
   viewMode: 'list' as ViewMode,
 
   setCategoryFilter: (category: string) =>
@@ -41,10 +42,10 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ selectedMeteorite: meteorite }),
 
   openModal: (meteorite: Meteorite) =>
-    set({ selectedMeteorite: meteorite, isModalOpen: true }),
+    set({ selectedMeteorite: meteorite, isModalOpen: true, isEditing: false }),
 
   closeModal: () =>
-    set({ selectedMeteorite: null, isModalOpen: false }),
+    set({ selectedMeteorite: null, isModalOpen: false, isEditing: false }),
 
   openAddModal: () =>
     set({ isAddModalOpen: true }),
@@ -57,9 +58,32 @@ export const useStore = create<StoreState>((set, get) => ({
       meteorites: [meteorite, ...state.meteorites],
     })),
 
-  checkDuplicateId: (id: string) => {
+  updateMeteorite: (id: string, updates: Partial<Meteorite>) => {
+    const { meteorites, selectedMeteorite } = get();
+    const index = meteorites.findIndex((m) => m.id === id);
+    if (index === -1) return undefined;
+
+    const updatedMeteorite = { ...meteorites[index], ...updates };
+    const newMeteorites = [...meteorites];
+    newMeteorites[index] = updatedMeteorite;
+
+    set({
+      meteorites: newMeteorites,
+      selectedMeteorite: selectedMeteorite?.id === id ? updatedMeteorite : selectedMeteorite,
+    });
+
+    return updatedMeteorite;
+  },
+
+  startEditing: () =>
+    set({ isEditing: true }),
+
+  cancelEditing: () =>
+    set({ isEditing: false }),
+
+  checkDuplicateId: (id: string, excludeId?: string) => {
     const { meteorites } = get();
-    return meteorites.some((m) => m.id === id);
+    return meteorites.some((m) => m.id === id && m.id !== excludeId);
   },
 
   resetFilters: () =>
