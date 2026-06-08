@@ -11,11 +11,9 @@ import {
   ShoppingBag,
   Scissors,
   Hash,
-  Edit3,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { SALE_STATUS_COLORS, SALE_STATUS_LABELS } from '@/types';
-import EditMeteoriteForm from './EditMeteoriteForm';
 
 const DetailModal = () => {
   const { isModalOpen, selectedMeteorite, closeModal } = useStore();

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { StoreState, Meteorite, SaleStatus, ViewMode } from '@/types';
+import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig } from '@/types';
 import { mockMeteorites } from '@/data/mockData';
 
 const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
@@ -8,6 +8,15 @@ const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
 };
 
 const [minWeight, maxWeight] = calculateWeightRange(mockMeteorites);
+
+const getInitialDisplayCaseCapacities = (): Record<string, DisplayCaseCapacityConfig> => {
+  const capacities: Record<string, DisplayCaseCapacityConfig> = {};
+  const displayCases = [...new Set(mockMeteorites.map(m => m.displayCase))];
+  displayCases.forEach(dc => {
+    capacities[dc] = { capacityLimit: DEFAULT_CAPACITY_LIMIT };
+  });
+  return capacities;
+};
 
 export const useStore = create<StoreState>((set, get) => ({
   meteorites: mockMeteorites,
@@ -20,8 +29,11 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedMeteorite: null,
   isModalOpen: false,
   isAddModalOpen: false,
+  isCertificateArchiveOpen: false,
+  isCapacityPlannerOpen: false,
   isEditing: false,
   viewMode: 'list' as ViewMode,
+  displayCaseCapacities: getInitialDisplayCaseCapacities(),
 
   setCategoryFilter: (category: string) =>
     set((state) => ({
@@ -42,10 +54,10 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ selectedMeteorite: meteorite }),
 
   openModal: (meteorite: Meteorite) =>
-    set({ selectedMeteorite: meteorite, isModalOpen: true }),
+    set({ selectedMeteorite: meteorite, isModalOpen: true, isEditing: false }),
 
   closeModal: () =>
-    set({ selectedMeteorite: null, isModalOpen: false }),
+    set({ selectedMeteorite: null, isModalOpen: false, isEditing: false }),
 
   openAddModal: () =>
     set({ isAddModalOpen: true }),
@@ -53,15 +65,56 @@ export const useStore = create<StoreState>((set, get) => ({
   closeAddModal: () =>
     set({ isAddModalOpen: false }),
 
-  addMeteorite: (meteorite: Meteorite) =>
-    set((state) => ({
-      meteorites: [meteorite, ...state.meteorites],
-    })),
+  openCertificateArchive: () =>
+    set({ isCertificateArchiveOpen: true }),
 
-  checkDuplicateId: (id: string) => {
-    const { meteorites } = get();
-    return meteorites.some((m) => m.id === id);
+  closeCertificateArchive: () =>
+    set({ isCertificateArchiveOpen: false }),
+
+  openCapacityPlanner: () =>
+    set({ isCapacityPlannerOpen: true }),
+
+  closeCapacityPlanner: () =>
+    set({ isCapacityPlannerOpen: false }),
+
+  addMeteorite: (meteorite: Meteorite) =>
+    set((state) => {
+      const newCapacities = { ...state.displayCaseCapacities };
+      if (!newCapacities[meteorite.displayCase]) {
+        newCapacities[meteorite.displayCase] = { capacityLimit: DEFAULT_CAPACITY_LIMIT };
+      }
+      return {
+        meteorites: [meteorite, ...state.meteorites],
+        displayCaseCapacities: newCapacities,
+      };
+    }),
+
+  updateMeteorite: (id: string, updates: Partial<Meteorite>) => {
+    const { meteorites, displayCaseCapacities } = get();
+    const index = meteorites.findIndex((m) => m.id === id);
+    if (index === -1) return undefined;
+
+    const updated = { ...meteorites[index], ...updates };
+    const newMeteorites = [...meteorites];
+    newMeteorites[index] = updated;
+
+    let newCapacities = displayCaseCapacities;
+    if (updates.displayCase && !displayCaseCapacities[updates.displayCase]) {
+      newCapacities = {
+        ...displayCaseCapacities,
+        [updates.displayCase]: { capacityLimit: DEFAULT_CAPACITY_LIMIT },
+      };
+    }
+
+    set({ meteorites: newMeteorites, displayCaseCapacities: newCapacities });
+    return updated;
   },
+
+  startEditing: () =>
+    set({ isEditing: true }),
+
+  cancelEditing: () =>
+    set({ isEditing: false }),
 
   resetFilters: () =>
     set({
@@ -83,6 +136,11 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
+  checkDuplicateId: (id: string, excludeId?: string) => {
+    const { meteorites } = get();
+    return meteorites.some((m) => m.id === id && m.id !== excludeId);
+  },
+
   searchByCertificateNumber: (certNumber: string) => {
     const { meteorites } = get();
     const trimmed = certNumber.trim().toUpperCase();
@@ -91,6 +149,45 @@ export const useStore = create<StoreState>((set, get) => ({
 
   setViewMode: (mode: ViewMode) =>
     set({ viewMode: mode }),
+
+  setDisplayCaseCapacity: (displayCase: string, capacityLimit: number) =>
+    set((state) => ({
+      displayCaseCapacities: {
+        ...state.displayCaseCapacities,
+        [displayCase]: { capacityLimit },
+      },
+    })),
+
+  getDisplayCaseCapacityData: (): DisplayCaseCapacityData[] => {
+    const { meteorites, displayCaseCapacities } = get();
+    const displayCases = [...new Set(meteorites.map(m => m.displayCase))].sort();
+
+    return displayCases.map(dc => {
+      const items = meteorites.filter(m => m.displayCase === dc);
+      const totalWeight = items.reduce((sum, m) => sum + m.weight, 0);
+      const capacityLimit = displayCaseCapacities[dc]?.capacityLimit ?? DEFAULT_CAPACITY_LIMIT;
+
+      const statusDistribution: Record<SaleStatus, number> = {
+        available: 0,
+        reserved: 0,
+        sold: 0,
+      };
+      items.forEach(m => {
+        statusDistribution[m.saleStatus]++;
+      });
+
+      return {
+        displayCase: dc,
+        meteorites: items,
+        totalWeight,
+        count: items.length,
+        capacityLimit,
+        isOverCapacity: totalWeight > capacityLimit,
+        isEmpty: items.length === 0,
+        statusDistribution,
+      };
+    });
+  },
 }));
 
 export { minWeight, maxWeight };

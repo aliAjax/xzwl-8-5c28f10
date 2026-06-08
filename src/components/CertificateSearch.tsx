@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Award, FileText, X, Eye, AlertCircle, Archive } from 'lucide-react';
+import { Search, Award, FileText, X, Eye, AlertCircle } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { Meteorite } from '@/types';
 

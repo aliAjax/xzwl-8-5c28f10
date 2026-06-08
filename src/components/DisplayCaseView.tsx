@@ -14,10 +14,15 @@ const DisplayCaseView = () => {
   const meteoritesData = useStore((state) => state.meteorites);
   const filters = useStore((state) => state.filters);
   const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
+  const openCapacityPlanner = useStore((state) => state.openCapacityPlanner);
+  const getDisplayCaseCapacityData = useStore((state) => state.getDisplayCaseCapacityData);
 
   const filteredMeteorites = useMemo(() => {
     return getFilteredMeteorites();
   }, [meteoritesData, filters, getFilteredMeteorites]);
+
+  const capacityData = useMemo(() => getDisplayCaseCapacityData(), [meteoritesData, getDisplayCaseCapacityData]);
+  const overCapacityCount = capacityData.filter(c => c.isOverCapacity).length;
 
   const groupedByCase = filteredMeteorites.reduce<Record<string, DisplayCaseGroup>>((acc, meteorite) => {
     const caseKey = meteorite.displayCase || '未分组';
@@ -55,6 +60,33 @@ const DisplayCaseView = () => {
 
   return (
     <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-archive-card archive-border rounded-2xl p-6">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-archive-cream mb-1">
+            展示柜视图
+          </h2>
+          <p className="text-archive-cream/60 text-sm">
+            按展示柜分组查看所有陨石藏品
+          </p>
+        </div>
+        <button
+          onClick={openCapacityPlanner}
+          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 ${
+            overCapacityCount > 0
+              ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30'
+              : 'bg-archive-gold/20 text-archive-gold border border-archive-gold/50 hover:bg-archive-gold/30'
+          }`}
+        >
+          <LayoutGrid className="w-5 h-5" />
+          <span>展柜容量规划</span>
+          {overCapacityCount > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+              {overCapacityCount}
+            </span>
+          )}
+        </button>
+      </div>
+
       {sortedCases.map((caseGroup, caseIndex) => (
         <div
           key={caseGroup.displayCase}

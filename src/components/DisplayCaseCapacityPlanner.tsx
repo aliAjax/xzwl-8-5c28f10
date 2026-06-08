@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Archive, Package, Scale, AlertTriangle, Settings, CheckCircle, Clock, ShoppingCart } from 'lucide-react';
+import { X, Archive, Package, Scale, AlertTriangle, Settings, CheckCircle, Clock } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { SALE_STATUS_LABELS, SALE_STATUS_COLORS, DisplayCaseCapacityData } from '@/types';
 
