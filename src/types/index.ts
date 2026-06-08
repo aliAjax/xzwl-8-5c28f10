@@ -103,6 +103,20 @@ export interface ImportError {
   value?: string;
 }
 
+export interface CaseMoveRecord {
+  meteoriteId: string;
+  fromCase: string;
+  toCase: string;
+}
+
+export interface CaseSimulationState {
+  isSimulating: boolean;
+  originalMeteorites: Meteorite[];
+  simulatedMeteorites: Meteorite[];
+  moveHistory: CaseMoveRecord[];
+  selectedMeteoriteIds: Set<string>;
+}
+
 export interface ImportRowData {
   rowKey: string;
   rowNum: number;
@@ -157,6 +171,7 @@ export interface StoreState {
   displayCaseCapacities: Record<string, DisplayCaseCapacityConfig>;
   filterViews: FilterView[];
   activeFilterViewId: string | null;
+  caseSimulation: CaseSimulationState;
   setCategoryFilter: (category: string) => void;
   setWeightFilter: (min: number, max: number) => void;
   setSaleStatusFilter: (status: SaleStatus | 'all') => void;
@@ -187,7 +202,7 @@ export interface StoreState {
   searchCertificates: (keyword: string) => Meteorite[];
   setViewMode: (mode: ViewMode) => void;
   setDisplayCaseCapacity: (displayCase: string, capacityLimit: number) => void;
-  getDisplayCaseCapacityData: () => DisplayCaseCapacityData[];
+  getDisplayCaseCapacityData: (useSimulation?: boolean) => DisplayCaseCapacityData[];
   validateStatusTransition: (meteoriteId: string, newStatus: SaleStatus, fromStatus?: SaleStatus) => { valid: boolean; reason?: string };
   startAddingStatusRecord: (meteoriteId: string, newStatus: SaleStatus) => boolean;
   cancelAddingStatusRecord: () => void;
@@ -198,6 +213,16 @@ export interface StoreState {
   applyFilterView: (id: string) => void;
   clearActiveFilterView: () => void;
   resetToMockData: () => void;
+  startCaseSimulation: () => boolean;
+  cancelCaseSimulation: () => void;
+  confirmCaseSimulation: () => { success: boolean; updatedCount: number };
+  moveMeteoriteToCase: (meteoriteId: string, targetCase: string) => boolean;
+  batchMoveMeteoritesToCase: (meteoriteIds: string[], targetCase: string) => number;
+  toggleMeteoriteSelection: (meteoriteId: string) => void;
+  clearMeteoriteSelection: () => void;
+  selectAllMeteoritesInCase: (displayCase: string) => void;
+  getSimulatedMeteorites: () => Meteorite[];
+  getSimulationMoveCount: () => number;
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [
