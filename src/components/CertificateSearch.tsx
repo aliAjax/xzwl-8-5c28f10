@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Award, FileText, X, Eye, AlertCircle } from 'lucide-react';
+import { Search, Award, FileText, X, Eye, AlertCircle, Layers } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { Meteorite } from '@/types';
 
@@ -18,7 +18,7 @@ const CertificateSearch = () => {
   const [showEmpty, setShowEmpty] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const { searchByCertificateNumber, openModal } = useStore();
+  const { searchByCertificateNumber, openModal, openCertificateArchive, meteorites } = useStore();
 
   const handleSearch = () => {
     if (!certNumber.trim()) return;
@@ -57,9 +57,22 @@ const CertificateSearch = () => {
   return (
     <div className="bg-archive-card/50 backdrop-blur-sm border-b border-archive-gold/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <div className="flex items-center space-x-2 mb-4">
-          <Search className="w-5 h-5 text-archive-gold" />
-          <h2 className="font-display text-lg font-semibold text-archive-cream">证书查询</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Search className="w-5 h-5 text-archive-gold" />
+            <h2 className="font-display text-lg font-semibold text-archive-cream">证书查询</h2>
+          </div>
+          <button
+            onClick={openCertificateArchive}
+            className="flex items-center space-x-2 px-3 py-1.5 bg-archive-gold/10 border border-archive-gold/30 rounded-lg text-archive-gold text-sm hover:bg-archive-gold/20 transition-all group"
+          >
+            <Layers className="w-4 h-4" />
+            <span className="hidden sm:inline">按机构浏览</span>
+            <span className="sm:hidden">浏览</span>
+            <span className="px-1.5 py-0.5 bg-archive-gold/20 rounded text-xs font-semibold">
+              {meteorites.length}
+            </span>
+          </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">

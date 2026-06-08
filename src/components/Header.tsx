@@ -1,8 +1,8 @@
-import { Gem, Archive, Plus, Upload } from 'lucide-react';
+import { Gem, Archive, Plus, Upload, BookOpen } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 const Header = () => {
-  const { meteorites, getFilteredMeteorites, openAddModal, openBatchImportModal } = useStore();
+  const { meteorites, getFilteredMeteorites, openAddModal, openBatchImportModal, openCertificateArchive } = useStore();
   const filteredCount = getFilteredMeteorites().length;
   const totalCount = meteorites.length;
 
@@ -62,6 +62,16 @@ const Header = () => {
                 </div>
               </div>
             </div>
+
+            <div className="h-12 w-px bg-gradient-to-b from-transparent via-archive-gold/30 to-transparent" />
+
+            <button
+              onClick={openCertificateArchive}
+              className="group flex items-center space-x-2 px-5 py-2.5 bg-archive-card border border-archive-gold/40 rounded-lg text-archive-gold font-semibold hover:bg-archive-gold/10 hover:border-archive-gold/60 transition-all"
+            >
+              <BookOpen className="w-5 h-5" />
+              <span className="hidden sm:inline">证书档案库</span>
+            </button>
 
             <div className="h-12 w-px bg-gradient-to-b from-transparent via-archive-gold/30 to-transparent" />
 
