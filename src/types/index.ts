@@ -103,9 +103,29 @@ export interface ImportError {
   value?: string;
 }
 
+export interface ImportRowData {
+  rowNum: number;
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  weight: string;
+  sliced: string;
+  certificateNumber: string;
+  displayCase: string;
+  saleStatus: string;
+  discoveredDate: string;
+  description: string;
+  imageUrl: string;
+  certificateInfo: string;
+  errors: ImportError[];
+  isValid: boolean;
+}
+
 export interface ImportPreviewData {
   headers: string[];
   headerMapping: Record<string, string>;
+  allRows: ImportRowData[];
   validRows: Meteorite[];
   errorRows: ImportError[];
   duplicateIds: string[];

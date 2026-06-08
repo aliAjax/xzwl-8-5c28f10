@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { ImportPreviewData, SALE_STATUS_COLORS, ImportError, METEORITE_CATEGORIES } from '@/types';
-import { parseAndValidateCSV, getRecognizedFields, getMissingRequiredFields, revalidatePreviewData, generateInitialHistory } from '@/utils/importCSV';
+import { parseAndValidateCSV, getRecognizedFields, getMissingRequiredFields, revalidatePreviewData, parseSaleStatus, convertRowDataToMeteorite } from '@/utils/importCSV';
 
 const FIELD_LABELS: Record<string, string> = {
   id: '藏品编号',
@@ -243,13 +243,17 @@ const BatchImportModal = () => {
     setPreviewData(null);
   };
 
-  const handleToggleRowSelection = (meteoriteId: string) => {
+  const handleToggleRowSelection = (rowId: string) => {
     if (!previewData) return;
+    
+    const row = previewData.allRows.find(r => r.id === rowId);
+    if (!row || !row.isValid) return;
+    
     const newSelected = new Set(previewData.selectedRowIds);
-    if (newSelected.has(meteoriteId)) {
-      newSelected.delete(meteoriteId);
+    if (newSelected.has(rowId)) {
+      newSelected.delete(rowId);
     } else {
-      newSelected.add(meteoriteId);
+      newSelected.add(rowId);
     }
     setPreviewData({
       ...previewData,
@@ -259,10 +263,10 @@ const BatchImportModal = () => {
 
   const handleSelectAll = () => {
     if (!previewData) return;
-    const allIds = new Set(previewData.validRows.map(m => m.id));
+    const allValidIds = new Set(previewData.allRows.filter(r => r.isValid).map(r => r.id));
     setPreviewData({
       ...previewData,
-      selectedRowIds: allIds,
+      selectedRowIds: allValidIds,
     });
   };
 
@@ -275,8 +279,10 @@ const BatchImportModal = () => {
   };
 
   const isAllSelected = useMemo(() => {
-    if (!previewData || previewData.validRows.length === 0) return false;
-    return previewData.validRows.every(m => previewData.selectedRowIds.has(m.id));
+    if (!previewData) return false;
+    const validRows = previewData.allRows.filter(r => r.isValid);
+    if (validRows.length === 0) return false;
+    return validRows.every(r => previewData.selectedRowIds.has(r.id));
   }, [previewData]);
 
   const selectedCount = useMemo(() => {
@@ -284,43 +290,61 @@ const BatchImportModal = () => {
     return previewData.selectedRowIds.size;
   }, [previewData]);
 
-  const handleFieldEdit = (meteoriteId: string, field: string, value: string) => {
+  const hasErrors = useMemo(() => {
+    if (!previewData) return false;
+    return previewData.allRows.some(r => !r.isValid);
+  }, [previewData]);
+
+  const handleFieldEdit = (rowId: string, field: string, value: string) => {
     if (!previewData) return;
     
-    const updatedRows = previewData.validRows.map(m => {
-      if (m.id !== meteoriteId) return m;
+    const updatedAllRows = previewData.allRows.map(row => {
+      if (row.id !== rowId) return row;
       
-      let updated = { ...m };
+      const updated = { ...row };
       switch (field) {
         case 'category':
-          updated.category = value as any;
+          updated.category = value;
           break;
         case 'weight':
-          updated.weight = parseFloat(value) || 0;
+          updated.weight = value;
           break;
         case 'saleStatus':
-          updated.saleStatus = value as any;
+          updated.saleStatus = value;
           break;
         case 'displayCase':
           updated.displayCase = value;
+          break;
+        case 'id':
+          updated.id = value.trim();
+          break;
+        case 'name':
+          updated.name = value.trim();
+          break;
+        case 'location':
+          updated.location = value.trim();
+          break;
+        case 'certificateNumber':
+          updated.certificateNumber = value.trim();
+          break;
+        case 'discoveredDate':
+          updated.discoveredDate = value.trim();
+          break;
+        case 'description':
+          updated.description = value.trim();
+          break;
+        case 'imageUrl':
+          updated.imageUrl = value.trim();
           break;
       }
       return updated;
     });
 
-    const revalidated = revalidatePreviewData(updatedRows, existingIds);
-    
-    const newSelectedIds = new Set(previewData.selectedRowIds);
-    revalidated.selectedRowIds.forEach(id => {
-      if (!newSelectedIds.has(id)) {
-        newSelectedIds.add(id);
-      }
-    });
+    const revalidated = revalidatePreviewData(updatedAllRows, existingIds, previewData.selectedRowIds);
     
     setPreviewData({
       ...previewData,
       ...revalidated,
-      selectedRowIds: newSelectedIds,
     });
   };
 
@@ -331,12 +355,9 @@ const BatchImportModal = () => {
     
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    const selectedRows = previewData.validRows
-      .filter(m => previewData.selectedRowIds.has(m.id))
-      .map((m, index) => ({
-        ...m,
-        saleStatusHistory: generateInitialHistory(m.id, m.saleStatus, index),
-      }));
+    const selectedRows = previewData.allRows
+      .filter(row => row.isValid && previewData.selectedRowIds.has(row.id))
+      .map((row, index) => convertRowDataToMeteorite(row, index));
     
     const count = batchAddMeteorites(selectedRows);
     setImportCount(count);
@@ -581,12 +602,16 @@ const BatchImportModal = () => {
           </div>
         )}
 
-        {previewData.validRows.length > 0 && (
+        {previewData.allRows.length > 0 && (
           <div className="bg-archive-bg/50 rounded-xl p-5 archive-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display text-lg font-semibold text-archive-cream flex items-center space-x-2">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-                <span>待导入藏品预览 ({previewData.validCount} 条，已选择 {selectedCount} 条)</span>
+                {hasErrors ? (
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                ) : (
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                )}
+                <span>数据预览 ({previewData.allRows.length} 条，有效 {previewData.validCount} 条，已选择 {selectedCount} 条)</span>
               </h3>
               <div className="flex items-center space-x-2">
                 <button
@@ -594,7 +619,7 @@ const BatchImportModal = () => {
                   onClick={handleSelectAll}
                   className="px-3 py-1.5 text-xs bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/30 transition-all"
                 >
-                  全选
+                  全选有效
                 </button>
                 <button
                   type="button"
@@ -624,6 +649,7 @@ const BatchImportModal = () => {
                       />
                     </th>
                     <th className="px-3 py-2 text-left w-10"></th>
+                    <th className="px-3 py-2 text-left">行号</th>
                     <th className="px-3 py-2 text-left">编号</th>
                     <th className="px-3 py-2 text-left">名称</th>
                     <th className="px-3 py-2 text-left">分类</th>
@@ -633,111 +659,236 @@ const BatchImportModal = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-archive-gold/10">
-                  {previewData.validRows.map((meteorite, index) => (
-                    <React.Fragment key={meteorite.id}>
-                      <tr 
-                        className={`hover:bg-archive-gold/5 transition-colors ${!previewData.selectedRowIds.has(meteorite.id) ? 'opacity-50' : ''}`}
-                      >
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={previewData.selectedRowIds.has(meteorite.id)}
-                            onChange={() => handleToggleRowSelection(meteorite.id)}
-                            className="w-4 h-4 accent-archive-gold rounded cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-3 py-2" onClick={() => toggleRow(index)}>
-                          {expandedRows.has(index) ? (
-                            <ChevronUp className="w-4 h-4 text-archive-gold cursor-pointer" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-archive-gold cursor-pointer" />
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-archive-cream font-mono">{meteorite.id}</td>
-                        <td className="px-3 py-2 text-archive-cream">{meteorite.name}</td>
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={meteorite.category}
-                            onChange={(e) => handleFieldEdit(meteorite.id, 'category', e.target.value)}
-                            className="w-full px-2 py-1 bg-archive-bg/50 border border-archive-gold/30 rounded text-sm text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/50 cursor-pointer"
-                          >
-                            {METEORITE_CATEGORIES.map(cat => (
-                              <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="number"
-                            value={meteorite.weight}
-                            onChange={(e) => handleFieldEdit(meteorite.id, 'weight', e.target.value)}
-                            className="w-full px-2 py-1 bg-archive-bg/50 border border-archive-gold/30 rounded text-sm text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/50"
-                            step="0.01"
-                            min="0"
-                          />
-                        </td>
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="text"
-                            value={meteorite.displayCase}
-                            onChange={(e) => handleFieldEdit(meteorite.id, 'displayCase', e.target.value)}
-                            className="w-full px-2 py-1 bg-archive-bg/50 border border-archive-gold/30 rounded text-sm text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/50"
-                            placeholder="例如: A-01"
-                          />
-                        </td>
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={meteorite.saleStatus}
-                            onChange={(e) => handleFieldEdit(meteorite.id, 'saleStatus', e.target.value)}
-                            className={`px-2 py-1 rounded text-xs font-medium text-white border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-archive-gold/50 ${SALE_STATUS_COLORS[meteorite.saleStatus]}`}
-                          >
-                            <option value="available">在售</option>
-                            <option value="reserved">预留</option>
-                            <option value="sold">已售出</option>
-                          </select>
-                        </td>
-                      </tr>
-                      {expandedRows.has(index) && (
-                        <tr>
-                          <td colSpan={8} className="px-3 py-4 bg-archive-bg/30">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                              <div>
-                                <p className="text-archive-cream/50 text-xs mb-1">发现地</p>
-                                <p className="text-archive-cream">{meteorite.location}</p>
-                              </div>
-                              <div>
-                                <p className="text-archive-cream/50 text-xs mb-1">发现日期</p>
-                                <p className="text-archive-cream">{meteorite.discoveredDate}</p>
-                              </div>
-                              <div>
-                                <p className="text-archive-cream/50 text-xs mb-1">证书编号</p>
-                                <p className="text-archive-cream font-mono">{meteorite.certificateNumber}</p>
-                              </div>
-                              <div>
-                                <p className="text-archive-cream/50 text-xs mb-1">切片状态</p>
-                                <p className="text-archive-cream">{meteorite.sliced ? '已切片' : '完整个体'}</p>
-                              </div>
-                              <div className="col-span-2">
-                                <p className="text-archive-cream/50 text-xs mb-1">描述</p>
-                                <p className="text-archive-cream line-clamp-2">{meteorite.description}</p>
-                              </div>
-                              <div className="col-span-2">
-                                <p className="text-archive-cream/50 text-xs mb-1">图片地址</p>
-                                <p className="text-archive-cream/70 font-mono text-xs truncate">{meteorite.imageUrl}</p>
-                              </div>
-                            </div>
+                  {previewData.allRows.map((row, index) => {
+                    const hasError = !row.isValid;
+                    const isSelected = previewData.selectedRowIds.has(row.id);
+                    const saleStatusValue = parseSaleStatus(row.saleStatus);
+                    
+                    return (
+                      <React.Fragment key={`${row.rowNum}-${row.id || index}`}>
+                        <tr 
+                          className={`hover:bg-archive-gold/5 transition-colors ${
+                            hasError ? 'bg-red-500/5' : !isSelected ? 'opacity-50' : ''
+                          }`}
+                        >
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleRowSelection(row.id)}
+                              disabled={hasError}
+                              className={`w-4 h-4 accent-archive-gold rounded ${
+                                hasError ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
+                              }`}
+                            />
+                          </td>
+                          <td className="px-3 py-2" onClick={() => toggleRow(index)}>
+                            {expandedRows.has(index) ? (
+                              <ChevronUp className="w-4 h-4 text-archive-gold cursor-pointer" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-archive-gold cursor-pointer" />
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {hasError ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/20 text-red-400">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                第{row.rowNum}行
+                              </span>
+                            ) : (
+                              <span className="text-archive-cream/50 text-xs">第{row.rowNum}行</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={row.id}
+                              onChange={(e) => handleFieldEdit(row.id, 'id', e.target.value)}
+                              className={`w-full px-2 py-1 rounded text-sm font-mono focus:outline-none focus:ring-2 ${
+                                row.errors.some(e => e.field === '藏品编号')
+                                  ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                  : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                              }`}
+                              placeholder="藏品编号"
+                            />
+                          </td>
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={row.name}
+                              onChange={(e) => handleFieldEdit(row.id, 'name', e.target.value)}
+                              className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
+                                row.errors.some(e => e.field === '名称')
+                                  ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                  : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                              }`}
+                              placeholder="名称"
+                            />
+                          </td>
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={row.category || ''}
+                              onChange={(e) => handleFieldEdit(row.id, 'category', e.target.value)}
+                              className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 cursor-pointer ${
+                                row.errors.some(e => e.field === '分类')
+                                  ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                  : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                              }`}
+                            >
+                              <option value="">请选择分类</option>
+                              {METEORITE_CATEGORIES.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              value={row.weight}
+                              onChange={(e) => handleFieldEdit(row.id, 'weight', e.target.value)}
+                              className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
+                                row.errors.some(e => e.field === '重量')
+                                  ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                  : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                              }`}
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                            />
+                          </td>
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={row.displayCase}
+                              onChange={(e) => handleFieldEdit(row.id, 'displayCase', e.target.value)}
+                              className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
+                                row.errors.some(e => e.field === '展示柜')
+                                  ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                  : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                              }`}
+                              placeholder="例如: A-01"
+                            />
+                          </td>
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={saleStatusValue}
+                              onChange={(e) => handleFieldEdit(row.id, 'saleStatus', e.target.value)}
+                              className={`px-2 py-1 rounded text-xs font-medium text-white border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-archive-gold/50 ${SALE_STATUS_COLORS[saleStatusValue]}`}
+                            >
+                              <option value="available">在售</option>
+                              <option value="reserved">预留</option>
+                              <option value="sold">已售出</option>
+                            </select>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
+                        {expandedRows.has(index) && (
+                          <tr>
+                            <td colSpan={9} className="px-3 py-4 bg-archive-bg/30">
+                              {hasError && row.errors.length > 0 && (
+                                <div className="mb-4 p-3 bg-red-500/10 rounded-lg border border-red-500/30">
+                                  <p className="text-red-400 text-xs font-semibold mb-2">错误信息：</p>
+                                  <ul className="space-y-1">
+                                    {row.errors.map((error, errIdx) => (
+                                      <li key={errIdx} className="flex items-start space-x-2 text-red-400 text-xs">
+                                        <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                        <span>
+                                          <strong>{error.field}</strong>: {error.message}
+                                          {error.value !== undefined && ` (原值: "${error.value}")`}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-archive-cream/50 text-xs mb-1">发现地</p>
+                                  <input
+                                    type="text"
+                                    value={row.location}
+                                    onChange={(e) => handleFieldEdit(row.id, 'location', e.target.value)}
+                                    className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
+                                      row.errors.some(e => e.field === '发现地')
+                                        ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                        : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                                    }`}
+                                    placeholder="发现地"
+                                  />
+                                </div>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-archive-cream/50 text-xs mb-1">发现日期</p>
+                                  <input
+                                    type="text"
+                                    value={row.discoveredDate}
+                                    onChange={(e) => handleFieldEdit(row.id, 'discoveredDate', e.target.value)}
+                                    className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
+                                      row.errors.some(e => e.field === '发现日期')
+                                        ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                        : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                                    }`}
+                                    placeholder="YYYY-MM-DD"
+                                  />
+                                </div>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-archive-cream/50 text-xs mb-1">证书编号</p>
+                                  <input
+                                    type="text"
+                                    value={row.certificateNumber}
+                                    onChange={(e) => handleFieldEdit(row.id, 'certificateNumber', e.target.value)}
+                                    className={`w-full px-2 py-1 rounded text-sm font-mono focus:outline-none focus:ring-2 ${
+                                      row.errors.some(e => e.field === '证书编号')
+                                        ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                        : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                                    }`}
+                                    placeholder="证书编号"
+                                  />
+                                </div>
+                                <div>
+                                  <p className="text-archive-cream/50 text-xs mb-1">切片状态</p>
+                                  <p className="text-archive-cream">{row.sliced ? '已切片' : '完整个体'}</p>
+                                </div>
+                                <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-archive-cream/50 text-xs mb-1">描述</p>
+                                  <input
+                                    type="text"
+                                    value={row.description}
+                                    onChange={(e) => handleFieldEdit(row.id, 'description', e.target.value)}
+                                    className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
+                                      row.errors.some(e => e.field === '描述')
+                                        ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                        : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                                    }`}
+                                    placeholder="描述"
+                                  />
+                                </div>
+                                <div className="col-span-3" onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-archive-cream/50 text-xs mb-1">图片地址</p>
+                                  <input
+                                    type="text"
+                                    value={row.imageUrl}
+                                    onChange={(e) => handleFieldEdit(row.id, 'imageUrl', e.target.value)}
+                                    className={`w-full px-2 py-1 rounded text-sm font-mono focus:outline-none focus:ring-2 ${
+                                      row.errors.some(e => e.field === '图片地址')
+                                        ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
+                                        : 'bg-archive-bg/50 border border-archive-gold/30 text-archive-cream focus:ring-archive-gold/50'
+                                    }`}
+                                    placeholder="https://..."
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
               <p className="text-blue-400/80 text-xs flex items-start space-x-2">
                 <span>💡</span>
-                <span>提示：可直接在表格中修改<strong>分类</strong>、<strong>重量</strong>、<strong>展示柜</strong>和<strong>销售状态</strong>字段，修改后系统会自动重新验证数据。取消勾选的行将不会被导入。</span>
+                <span>提示：红色标记的行存在错误，可直接在表格中修改所有字段（<strong>编号</strong>、<strong>名称</strong>、<strong>分类</strong>、<strong>重量</strong>、<strong>展示柜</strong>、<strong>销售状态</strong>等），修正后系统会自动重新验证。勾选的有效行才会被导入。</span>
               </p>
             </div>
           </div>

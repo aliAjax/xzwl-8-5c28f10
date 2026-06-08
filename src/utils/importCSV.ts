@@ -1,4 +1,4 @@
-import { Meteorite, MeteoriteCategory, SaleStatus, METEORITE_CATEGORIES, ImportError, ImportPreviewData, SaleStatusRecord } from '@/types';
+import { Meteorite, MeteoriteCategory, SaleStatus, METEORITE_CATEGORIES, ImportError, ImportPreviewData, SaleStatusRecord, ImportRowData } from '@/types';
 
 const HEADER_MAPPING: Record<string, string> = {
   '藏品编号': 'id',
@@ -165,7 +165,7 @@ const parseSliced = (slicedStr: string): boolean => {
   return trimmed === '是' || trimmed === 'true' || trimmed === '1' || trimmed === 'yes' || trimmed === '已切片';
 };
 
-const parseSaleStatus = (statusStr: string): SaleStatus => {
+export const parseSaleStatus = (statusStr: string): SaleStatus => {
   if (!statusStr) return 'available';
   const trimmed = statusStr.trim();
   return SALE_STATUS_REVERSE_MAP[trimmed] || SALE_STATUS_REVERSE_MAP[trimmed.toLowerCase()] || 'available';
@@ -180,6 +180,7 @@ export const parseAndValidateCSV = (
     return {
       headers: [],
       headerMapping: {},
+      allRows: [],
       validRows: [],
       errorRows: [],
       duplicateIds: [],
@@ -194,6 +195,7 @@ export const parseAndValidateCSV = (
   const headerMapping = mapHeaders(headers);
   const dataRows = rows.slice(1);
   
+  const allRows: ImportRowData[] = [];
   const validRows: Meteorite[] = [];
   const errorRows: ImportError[] = [];
   const duplicateIds: string[] = [];
@@ -233,6 +235,26 @@ export const parseAndValidateCSV = (
         seenIds.add(id);
       }
     }
+    
+    const rowData: ImportRowData = {
+      rowNum,
+      id: data.id?.trim() || '',
+      name: data.name?.trim() || '',
+      category: data.category?.trim() || '',
+      location: data.location?.trim() || '',
+      weight: data.weight?.trim() || '',
+      sliced: data.sliced?.trim() || '',
+      certificateNumber: data.certificateNumber?.trim() || '',
+      displayCase: data.displayCase?.trim() || '',
+      saleStatus: data.saleStatus?.trim() || '',
+      discoveredDate: data.discoveredDate?.trim() || '',
+      description: data.description?.trim() || '',
+      imageUrl: data.imageUrl?.trim() || '',
+      certificateInfo: data.certificateInfo?.trim() || '',
+      errors: rowErrors,
+      isValid: rowErrors.length === 0,
+    };
+    allRows.push(rowData);
     
     if (rowErrors.length > 0) {
       errorRows.push(...rowErrors);
@@ -274,6 +296,7 @@ export const parseAndValidateCSV = (
   return {
     headers,
     headerMapping,
+    allRows,
     validRows,
     errorRows,
     duplicateIds,
@@ -345,30 +368,54 @@ export const generateInitialHistory = (id: string, saleStatus: SaleStatus, index
   },
 ];
 
+export const convertRowDataToMeteorite = (rowData: ImportRowData, index: number): Meteorite => {
+  const saleStatus = parseSaleStatus(rowData.saleStatus);
+  const initialHistory = generateInitialHistory(rowData.id, saleStatus, index);
+  
+  return {
+    id: rowData.id,
+    name: rowData.name,
+    category: rowData.category as MeteoriteCategory,
+    location: rowData.location,
+    weight: parseFloat(rowData.weight) || 0,
+    sliced: parseSliced(rowData.sliced),
+    certificateNumber: rowData.certificateNumber,
+    displayCase: rowData.displayCase,
+    saleStatus: saleStatus,
+    description: rowData.description,
+    imageUrl: rowData.imageUrl,
+    certificateInfo: rowData.certificateInfo || `证书编号: ${rowData.certificateNumber}`,
+    discoveredDate: rowData.discoveredDate,
+    saleStatusHistory: initialHistory,
+  };
+};
+
 export const revalidatePreviewData = (
-  validRows: Meteorite[],
-  existingIds: Set<string>
+  allRows: ImportRowData[],
+  existingIds: Set<string>,
+  previousSelectedIds: Set<string>
 ): Omit<ImportPreviewData, 'headers' | 'headerMapping' | 'totalRows'> => {
   const errorRows: ImportError[] = [];
   const duplicateIds: string[] = [];
   const seenIds = new Set<string>();
   const newValidRows: Meteorite[] = [];
+  const newAllRows: ImportRowData[] = [];
 
-  validRows.forEach((meteorite, index) => {
-    const rowNum = index + 2;
+  allRows.forEach((rowData, index) => {
+    const rowNum = rowData.rowNum;
     const rowErrors: ImportError[] = [];
 
     const requiredFields = [
-      { key: 'id', value: meteorite.id },
-      { key: 'name', value: meteorite.name },
-      { key: 'category', value: meteorite.category },
-      { key: 'location', value: meteorite.location },
-      { key: 'weight', value: meteorite.weight.toString() },
-      { key: 'certificateNumber', value: meteorite.certificateNumber },
-      { key: 'displayCase', value: meteorite.displayCase },
-      { key: 'discoveredDate', value: meteorite.discoveredDate },
-      { key: 'description', value: meteorite.description },
-      { key: 'imageUrl', value: meteorite.imageUrl },
+      { key: 'id', value: rowData.id },
+      { key: 'name', value: rowData.name },
+      { key: 'category', value: rowData.category },
+      { key: 'location', value: rowData.location },
+      { key: 'weight', value: rowData.weight },
+      { key: 'certificateNumber', value: rowData.certificateNumber },
+      { key: 'displayCase', value: rowData.displayCase },
+      { key: 'discoveredDate', value: rowData.discoveredDate },
+      { key: 'description', value: rowData.description },
+      { key: 'imageUrl', value: rowData.imageUrl },
     ];
 
     requiredFields.forEach(({ key, value }) => {
@@ -376,13 +423,13 @@ export const revalidatePreviewData = (
       if (error) rowErrors.push(error);
     });
 
-    const weightError = validateWeight(meteorite.weight.toString(), rowNum);
+    const weightError = validateWeight(rowData.weight, rowNum);
     if (weightError) rowErrors.push(weightError);
 
-    const categoryError = validateCategory(meteorite.category, rowNum);
+    const categoryError = validateCategory(rowData.category, rowNum);
     if (categoryError) rowErrors.push(categoryError);
 
-    const id = meteorite.id;
+    const id = rowData.id;
     if (id) {
       if (existingIds.has(id) || seenIds.has(id)) {
         const isDuplicateInBatch = seenIds.has(id);
@@ -402,25 +449,41 @@ export const revalidatePreviewData = (
       }
     }
 
+    const isValid = rowErrors.length === 0;
+    const updatedRowData: ImportRowData = {
+      ...rowData,
+      errors: rowErrors,
+      isValid,
+    };
+    newAllRows.push(updatedRowData);
+
     if (rowErrors.length > 0) {
       errorRows.push(...rowErrors);
     } else {
-      const initialHistory = generateInitialHistory(id, meteorite.saleStatus, index);
-      newValidRows.push({
-        ...meteorite,
-        saleStatusHistory: initialHistory,
-      });
+      const meteorite = convertRowDataToMeteorite(updatedRowData, index);
+      newValidRows.push(meteorite);
     }
   });
 
-  const selectedRowIds = new Set(newValidRows.map(m => m.id));
+  const newSelectedIds = new Set<string>();
+  previousSelectedIds.forEach(id => {
+    if (newValidRows.some(m => m.id === id)) {
+      newSelectedIds.add(id);
+    }
+  });
+  newValidRows.forEach(m => {
+    if (previousSelectedIds.has(m.id) || !previousSelectedIds.size) {
+      newSelectedIds.add(m.id);
+    }
+  });
 
   return {
+    allRows: newAllRows,
     validRows: newValidRows,
     errorRows,
     duplicateIds,
     validCount: newValidRows.length,
     errorCount: errorRows.length > 0 ? new Set(errorRows.map(e => e.row)).size : 0,
-    selectedRowIds,
+    selectedRowIds: newSelectedIds,
   };
 };
