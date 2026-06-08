@@ -162,6 +162,7 @@ export interface StoreState {
   getSortedMeteorites: (meteorites: Meteorite[]) => Meteorite[];
   checkDuplicateId: (id: string, excludeId?: string) => boolean;
   searchByCertificateNumber: (certNumber: string) => Meteorite | undefined;
+  searchCertificates: (keyword: string) => Meteorite[];
   setViewMode: (mode: ViewMode) => void;
   setDisplayCaseCapacity: (displayCase: string, capacityLimit: number) => void;
   getDisplayCaseCapacityData: () => DisplayCaseCapacityData[];
