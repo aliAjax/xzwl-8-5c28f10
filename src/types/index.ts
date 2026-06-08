@@ -35,6 +35,21 @@ export interface FilterState {
   saleStatus: SaleStatus | 'all';
 }
 
+export interface DisplayCaseCapacityConfig {
+  capacityLimit: number;
+}
+
+export interface DisplayCaseCapacityData {
+  displayCase: string;
+  meteorites: Meteorite[];
+  totalWeight: number;
+  count: number;
+  capacityLimit: number;
+  isOverCapacity: boolean;
+  isEmpty: boolean;
+  statusDistribution: Record<SaleStatus, number>;
+}
+
 export interface StoreState {
   meteorites: Meteorite[];
   filters: FilterState;
@@ -42,8 +57,10 @@ export interface StoreState {
   isModalOpen: boolean;
   isAddModalOpen: boolean;
   isCertificateArchiveOpen: boolean;
+  isCapacityPlannerOpen: boolean;
   isEditing: boolean;
   viewMode: ViewMode;
+  displayCaseCapacities: Record<string, DisplayCaseCapacityConfig>;
   setCategoryFilter: (category: string) => void;
   setWeightFilter: (min: number, max: number) => void;
   setSaleStatusFilter: (status: SaleStatus | 'all') => void;
@@ -54,6 +71,8 @@ export interface StoreState {
   closeAddModal: () => void;
   openCertificateArchive: () => void;
   closeCertificateArchive: () => void;
+  openCapacityPlanner: () => void;
+  closeCapacityPlanner: () => void;
   addMeteorite: (meteorite: Meteorite) => void;
   updateMeteorite: (id: string, updates: Partial<Meteorite>) => Meteorite | undefined;
   startEditing: () => void;
@@ -63,6 +82,8 @@ export interface StoreState {
   checkDuplicateId: (id: string, excludeId?: string) => boolean;
   searchByCertificateNumber: (certNumber: string) => Meteorite | undefined;
   setViewMode: (mode: ViewMode) => void;
+  setDisplayCaseCapacity: (displayCase: string, capacityLimit: number) => void;
+  getDisplayCaseCapacityData: () => DisplayCaseCapacityData[];
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [
@@ -88,3 +109,5 @@ export const SALE_STATUS_COLORS: Record<SaleStatus, string> = {
   reserved: 'bg-archive-reserved',
   sold: 'bg-archive-sold',
 };
+
+export const DEFAULT_CAPACITY_LIMIT = 10;

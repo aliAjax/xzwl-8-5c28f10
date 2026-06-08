@@ -20,7 +20,6 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedMeteorite: null,
   isModalOpen: false,
   isAddModalOpen: false,
-  isCertificateArchiveOpen: false,
   isEditing: false,
   viewMode: 'list' as ViewMode,
 
@@ -43,10 +42,10 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ selectedMeteorite: meteorite }),
 
   openModal: (meteorite: Meteorite) =>
-    set({ selectedMeteorite: meteorite, isModalOpen: true, isEditing: false }),
+    set({ selectedMeteorite: meteorite, isModalOpen: true }),
 
   closeModal: () =>
-    set({ selectedMeteorite: null, isModalOpen: false, isEditing: false }),
+    set({ selectedMeteorite: null, isModalOpen: false }),
 
   openAddModal: () =>
     set({ isAddModalOpen: true }),
@@ -54,43 +53,14 @@ export const useStore = create<StoreState>((set, get) => ({
   closeAddModal: () =>
     set({ isAddModalOpen: false }),
 
-  openCertificateArchive: () =>
-    set({ isCertificateArchiveOpen: true }),
-
-  closeCertificateArchive: () =>
-    set({ isCertificateArchiveOpen: false }),
-
   addMeteorite: (meteorite: Meteorite) =>
     set((state) => ({
       meteorites: [meteorite, ...state.meteorites],
     })),
 
-  updateMeteorite: (id: string, updates: Partial<Meteorite>) => {
-    const { meteorites, selectedMeteorite } = get();
-    const index = meteorites.findIndex((m) => m.id === id);
-    if (index === -1) return undefined;
-
-    const updatedMeteorite = { ...meteorites[index], ...updates };
-    const newMeteorites = [...meteorites];
-    newMeteorites[index] = updatedMeteorite;
-
-    set({
-      meteorites: newMeteorites,
-      selectedMeteorite: selectedMeteorite?.id === id ? updatedMeteorite : selectedMeteorite,
-    });
-
-    return updatedMeteorite;
-  },
-
-  startEditing: () =>
-    set({ isEditing: true }),
-
-  cancelEditing: () =>
-    set({ isEditing: false }),
-
-  checkDuplicateId: (id: string, excludeId?: string) => {
+  checkDuplicateId: (id: string) => {
     const { meteorites } = get();
-    return meteorites.some((m) => m.id === id && m.id !== excludeId);
+    return meteorites.some((m) => m.id === id);
   },
 
   resetFilters: () =>

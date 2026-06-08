@@ -8,6 +8,7 @@ import ViewToggle from '@/components/ViewToggle';
 import DetailModal from '@/components/DetailModal';
 import AddMeteoriteModal from '@/components/AddMeteoriteModal';
 import CertificateArchive from '@/components/CertificateArchive';
+import DisplayCaseCapacityPlanner from '@/components/DisplayCaseCapacityPlanner';
 import { useStore } from '@/store/useStore';
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
       <DetailModal />
       <AddMeteoriteModal />
       <CertificateArchive />
+      <DisplayCaseCapacityPlanner />
     </div>
   );
 }

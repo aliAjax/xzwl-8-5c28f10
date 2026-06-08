@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Inbox, Archive, Scale, Package } from 'lucide-react';
+import { Inbox, Archive, Scale, Package, LayoutGrid } from 'lucide-react';
 import { Meteorite } from '@/types';
 import { useStore } from '@/store/useStore';
 import MiniMeteoriteCard from './MiniMeteoriteCard';
