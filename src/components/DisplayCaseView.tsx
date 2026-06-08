@@ -15,6 +15,7 @@ const DisplayCaseView = () => {
   const filters = useStore((state) => state.filters);
   const sort = useStore((state) => state.sort);
   const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
+  const getSortedMeteorites = useStore((state) => state.getSortedMeteorites);
   const openCapacityPlanner = useStore((state) => state.openCapacityPlanner);
   const getDisplayCaseCapacityData = useStore((state) => state.getDisplayCaseCapacityData);
 
@@ -25,23 +26,30 @@ const DisplayCaseView = () => {
   const capacityData = useMemo(() => getDisplayCaseCapacityData(), [meteoritesData, getDisplayCaseCapacityData]);
   const overCapacityCount = capacityData.filter(c => c.isOverCapacity).length;
 
-  const groupedByCase = filteredMeteorites.reduce<Record<string, DisplayCaseGroup>>((acc, meteorite) => {
-    const caseKey = meteorite.displayCase || '未分组';
-    if (!acc[caseKey]) {
-      acc[caseKey] = {
-        displayCase: caseKey,
-        meteorites: [],
-        totalWeight: 0,
-      };
-    }
-    acc[caseKey].meteorites.push(meteorite);
-    acc[caseKey].totalWeight += meteorite.weight;
-    return acc;
-  }, {});
+  const sortedCases = useMemo(() => {
+    const groupedByCase = filteredMeteorites.reduce<Record<string, DisplayCaseGroup>>((acc, meteorite) => {
+      const caseKey = meteorite.displayCase || '未分组';
+      if (!acc[caseKey]) {
+        acc[caseKey] = {
+          displayCase: caseKey,
+          meteorites: [],
+          totalWeight: 0,
+        };
+      }
+      acc[caseKey].meteorites.push(meteorite);
+      acc[caseKey].totalWeight += meteorite.weight;
+      return acc;
+    }, {});
 
-  const sortedCases = Object.values(groupedByCase).sort((a, b) =>
-    a.displayCase.localeCompare(b.displayCase, 'zh-CN')
-  );
+    return Object.values(groupedByCase)
+      .map(group => ({
+        ...group,
+        meteorites: getSortedMeteorites(group.meteorites),
+      }))
+      .sort((a, b) =>
+        a.displayCase.localeCompare(b.displayCase, 'zh-CN')
+      );
+  }, [filteredMeteorites, getSortedMeteorites]);
 
   if (sortedCases.length === 0) {
     return (
