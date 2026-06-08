@@ -24,8 +24,8 @@ import {
   Copy,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { ImportPreviewData, SALE_STATUS_LABELS, SALE_STATUS_COLORS, ImportError, METEORITE_CATEGORIES } from '@/types';
-import { parseAndValidateCSV, getRecognizedFields, getMissingRequiredFields } from '@/utils/importCSV';
+import { ImportPreviewData, SALE_STATUS_COLORS, ImportError, METEORITE_CATEGORIES } from '@/types';
+import { parseAndValidateCSV, getRecognizedFields, getMissingRequiredFields, revalidatePreviewData, generateInitialHistory } from '@/utils/importCSV';
 
 const FIELD_LABELS: Record<string, string> = {
   id: '藏品编号',
@@ -243,14 +243,102 @@ const BatchImportModal = () => {
     setPreviewData(null);
   };
 
+  const handleToggleRowSelection = (meteoriteId: string) => {
+    if (!previewData) return;
+    const newSelected = new Set(previewData.selectedRowIds);
+    if (newSelected.has(meteoriteId)) {
+      newSelected.delete(meteoriteId);
+    } else {
+      newSelected.add(meteoriteId);
+    }
+    setPreviewData({
+      ...previewData,
+      selectedRowIds: newSelected,
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (!previewData) return;
+    const allIds = new Set(previewData.validRows.map(m => m.id));
+    setPreviewData({
+      ...previewData,
+      selectedRowIds: allIds,
+    });
+  };
+
+  const handleDeselectAll = () => {
+    if (!previewData) return;
+    setPreviewData({
+      ...previewData,
+      selectedRowIds: new Set(),
+    });
+  };
+
+  const isAllSelected = useMemo(() => {
+    if (!previewData || previewData.validRows.length === 0) return false;
+    return previewData.validRows.every(m => previewData.selectedRowIds.has(m.id));
+  }, [previewData]);
+
+  const selectedCount = useMemo(() => {
+    if (!previewData) return 0;
+    return previewData.selectedRowIds.size;
+  }, [previewData]);
+
+  const handleFieldEdit = (meteoriteId: string, field: string, value: string) => {
+    if (!previewData) return;
+    
+    const updatedRows = previewData.validRows.map(m => {
+      if (m.id !== meteoriteId) return m;
+      
+      let updated = { ...m };
+      switch (field) {
+        case 'category':
+          updated.category = value as any;
+          break;
+        case 'weight':
+          updated.weight = parseFloat(value) || 0;
+          break;
+        case 'saleStatus':
+          updated.saleStatus = value as any;
+          break;
+        case 'displayCase':
+          updated.displayCase = value;
+          break;
+      }
+      return updated;
+    });
+
+    const revalidated = revalidatePreviewData(updatedRows, existingIds);
+    
+    const newSelectedIds = new Set(previewData.selectedRowIds);
+    revalidated.selectedRowIds.forEach(id => {
+      if (!newSelectedIds.has(id)) {
+        newSelectedIds.add(id);
+      }
+    });
+    
+    setPreviewData({
+      ...previewData,
+      ...revalidated,
+      selectedRowIds: newSelectedIds,
+    });
+  };
+
   const handleImport = async () => {
-    if (!previewData || previewData.validRows.length === 0) return;
+    if (!previewData || previewData.selectedRowIds.size === 0) return;
     
     setStep('importing');
     
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    const count = batchAddMeteorites(previewData.validRows);
+    const selectedRows = previewData.validRows
+      .filter(m => previewData.selectedRowIds.has(m.id))
+      .map((m, index) => ({
+        ...m,
+        saleStatusHistory: generateInitialHistory(m.id, m.saleStatus, index),
+      }));
+    
+    const count = batchAddMeteorites(selectedRows);
     setImportCount(count);
     setStep('success');
   };
@@ -411,7 +499,7 @@ const BatchImportModal = () => {
       <div className="p-6 space-y-6">
         <div className="gold-dashed-divider" />
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-archive-bg/50 rounded-xl p-4 archive-border text-center">
             <p className="text-archive-cream/50 text-xs mb-1">数据总行数</p>
             <p className="font-display text-3xl font-bold text-archive-cream">{previewData.totalRows}</p>
@@ -419,6 +507,10 @@ const BatchImportModal = () => {
           <div className="bg-green-500/10 rounded-xl p-4 border border-green-500/30 text-center">
             <p className="text-green-400/70 text-xs mb-1">可导入数量</p>
             <p className="font-display text-3xl font-bold text-green-400">{previewData.validCount}</p>
+          </div>
+          <div className="bg-blue-500/10 rounded-xl p-4 border border-blue-500/30 text-center">
+            <p className="text-blue-400/70 text-xs mb-1">已选择导入</p>
+            <p className="font-display text-3xl font-bold text-blue-400">{selectedCount}</p>
           </div>
           <div className="bg-red-500/10 rounded-xl p-4 border border-red-500/30 text-center">
             <p className="text-red-400/70 text-xs mb-1">错误行数</p>
@@ -491,14 +583,46 @@ const BatchImportModal = () => {
 
         {previewData.validRows.length > 0 && (
           <div className="bg-archive-bg/50 rounded-xl p-5 archive-border">
-            <h3 className="font-display text-lg font-semibold text-archive-cream mb-4 flex items-center space-x-2">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-              <span>待导入藏品预览 ({previewData.validCount} 条)</span>
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-lg font-semibold text-archive-cream flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <span>待导入藏品预览 ({previewData.validCount} 条，已选择 {selectedCount} 条)</span>
+              </h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="px-3 py-1.5 text-xs bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/30 transition-all"
+                >
+                  全选
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeselectAll}
+                  className="px-3 py-1.5 text-xs bg-archive-cream/10 border border-archive-cream/20 text-archive-cream/70 rounded-lg hover:bg-archive-cream/20 transition-all"
+                >
+                  取消全选
+                </button>
+              </div>
+            </div>
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-archive-card">
                   <tr className="text-archive-cream/50 text-xs uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left w-10">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleSelectAll();
+                          } else {
+                            handleDeselectAll();
+                          }
+                        }}
+                        className="w-4 h-4 accent-archive-gold rounded cursor-pointer"
+                      />
+                    </th>
                     <th className="px-3 py-2 text-left w-10"></th>
                     <th className="px-3 py-2 text-left">编号</th>
                     <th className="px-3 py-2 text-left">名称</th>
@@ -512,30 +636,70 @@ const BatchImportModal = () => {
                   {previewData.validRows.map((meteorite, index) => (
                     <React.Fragment key={meteorite.id}>
                       <tr 
-                        className="hover:bg-archive-gold/5 cursor-pointer transition-colors"
-                        onClick={() => toggleRow(index)}
+                        className={`hover:bg-archive-gold/5 transition-colors ${!previewData.selectedRowIds.has(meteorite.id) ? 'opacity-50' : ''}`}
                       >
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={previewData.selectedRowIds.has(meteorite.id)}
+                            onChange={() => handleToggleRowSelection(meteorite.id)}
+                            className="w-4 h-4 accent-archive-gold rounded cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-3 py-2" onClick={() => toggleRow(index)}>
                           {expandedRows.has(index) ? (
-                            <ChevronUp className="w-4 h-4 text-archive-gold" />
+                            <ChevronUp className="w-4 h-4 text-archive-gold cursor-pointer" />
                           ) : (
-                            <ChevronDown className="w-4 h-4 text-archive-gold" />
+                            <ChevronDown className="w-4 h-4 text-archive-gold cursor-pointer" />
                           )}
                         </td>
                         <td className="px-3 py-2 text-archive-cream font-mono">{meteorite.id}</td>
                         <td className="px-3 py-2 text-archive-cream">{meteorite.name}</td>
-                        <td className="px-3 py-2 text-archive-cream/70">{meteorite.category}</td>
-                        <td className="px-3 py-2 text-archive-cream/70">{meteorite.weight}</td>
-                        <td className="px-3 py-2 text-archive-cream/70">{meteorite.displayCase}</td>
-                        <td className="px-3 py-2">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${SALE_STATUS_COLORS[meteorite.saleStatus]} text-white`}>
-                            {SALE_STATUS_LABELS[meteorite.saleStatus]}
-                          </span>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={meteorite.category}
+                            onChange={(e) => handleFieldEdit(meteorite.id, 'category', e.target.value)}
+                            className="w-full px-2 py-1 bg-archive-bg/50 border border-archive-gold/30 rounded text-sm text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/50 cursor-pointer"
+                          >
+                            {METEORITE_CATEGORIES.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="number"
+                            value={meteorite.weight}
+                            onChange={(e) => handleFieldEdit(meteorite.id, 'weight', e.target.value)}
+                            className="w-full px-2 py-1 bg-archive-bg/50 border border-archive-gold/30 rounded text-sm text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/50"
+                            step="0.01"
+                            min="0"
+                          />
+                        </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            value={meteorite.displayCase}
+                            onChange={(e) => handleFieldEdit(meteorite.id, 'displayCase', e.target.value)}
+                            className="w-full px-2 py-1 bg-archive-bg/50 border border-archive-gold/30 rounded text-sm text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/50"
+                            placeholder="例如: A-01"
+                          />
+                        </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={meteorite.saleStatus}
+                            onChange={(e) => handleFieldEdit(meteorite.id, 'saleStatus', e.target.value)}
+                            className={`px-2 py-1 rounded text-xs font-medium text-white border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-archive-gold/50 ${SALE_STATUS_COLORS[meteorite.saleStatus]}`}
+                          >
+                            <option value="available">在售</option>
+                            <option value="reserved">预留</option>
+                            <option value="sold">已售出</option>
+                          </select>
                         </td>
                       </tr>
                       {expandedRows.has(index) && (
                         <tr>
-                          <td colSpan={7} className="px-3 py-4 bg-archive-bg/30">
+                          <td colSpan={8} className="px-3 py-4 bg-archive-bg/30">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                               <div>
                                 <p className="text-archive-cream/50 text-xs mb-1">发现地</p>
@@ -570,6 +734,12 @@ const BatchImportModal = () => {
                 </tbody>
               </table>
             </div>
+            <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+              <p className="text-blue-400/80 text-xs flex items-start space-x-2">
+                <span>💡</span>
+                <span>提示：可直接在表格中修改<strong>分类</strong>、<strong>重量</strong>、<strong>展示柜</strong>和<strong>销售状态</strong>字段，修改后系统会自动重新验证数据。取消勾选的行将不会被导入。</span>
+              </p>
+            </div>
           </div>
         )}
 
@@ -586,11 +756,11 @@ const BatchImportModal = () => {
           <button
             type="button"
             onClick={handleImport}
-            disabled={previewData.validCount === 0}
+            disabled={selectedCount === 0}
             className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Upload className="w-5 h-5" />
-            <span>确认导入 {previewData.validCount} 条数据</span>
+            <span>确认导入 {selectedCount} 条数据</span>
           </button>
         </div>
       </div>

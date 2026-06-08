@@ -112,6 +112,7 @@ export interface ImportPreviewData {
   totalRows: number;
   validCount: number;
   errorCount: number;
+  selectedRowIds: Set<string>;
 }
 
 export interface StoreState {
