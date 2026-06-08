@@ -41,10 +41,9 @@ const ViewToggle = () => {
       <div className="flex items-center space-x-3">
         <button
           onClick={handleExport}
-          disabled={filteredMeteorites.length === 0}
           className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
             filteredMeteorites.length === 0
-              ? 'bg-archive-card/50 text-archive-cream/30 cursor-not-allowed archive-border'
+              ? 'bg-archive-card/50 text-archive-cream/30 cursor-not-allowed archive-border pointer-events-auto'
               : 'bg-archive-gold/20 text-archive-gold hover:bg-archive-gold/30 archive-border hover:shadow-md hover:shadow-archive-gold/20'
           }`}
         >
