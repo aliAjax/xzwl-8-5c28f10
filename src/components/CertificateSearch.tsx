@@ -104,6 +104,10 @@ const CertificateSearch = () => {
     setHasSearched(true);
     setSearchResults(results);
     setShowEmpty(results.length === 0);
+    
+    if (results.length === 1) {
+      openModal(results[0]);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
