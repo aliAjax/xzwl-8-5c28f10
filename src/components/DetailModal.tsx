@@ -90,7 +90,7 @@ const DetailModal = () => {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
-      onClick={closeModal}
+      onClick={handleClose}
     >
       <div className="absolute inset-0 bg-archive-bg/90 backdrop-blur-sm" />
 
