@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { Package, ShoppingCart, Clock, CheckCircle, Layers, Archive, Scale } from 'lucide-react';
+import { Package, ShoppingCart, Clock, CheckCircle, Layers, Archive, Scale, AlertTriangle, Timer } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { SALE_STATUS_LABELS, METEORITE_CATEGORIES } from '@/types';
+import { SALE_STATUS_LABELS, METEORITE_CATEGORIES, getReservedSubStatus, ReservedSubStatus } from '@/types';
 
 const StatisticsDashboard = () => {
   const allMeteorites = useStore((state) => state.meteorites);
@@ -20,10 +20,28 @@ const StatisticsDashboard = () => {
     const totalCount = meteorites.length;
     const totalWeight = meteorites.reduce((sum, m) => sum + m.weight, 0);
 
+    const reservedMeteorites = meteorites.filter((m) => m.saleStatus === 'reserved');
+    const reservedSubStatusCounts: Record<ReservedSubStatus, number> = {
+      normal: 0,
+      expiringSoon: 0,
+      expired: 0,
+    };
+    reservedMeteorites.forEach((m) => {
+      const subStatus = getReservedSubStatus(m.reservationInfo);
+      if (subStatus) {
+        reservedSubStatusCounts[subStatus]++;
+      } else {
+        reservedSubStatusCounts.normal++;
+      }
+    });
+
     const saleStatusCounts = {
       available: meteorites.filter((m) => m.saleStatus === 'available').length,
-      reserved: meteorites.filter((m) => m.saleStatus === 'reserved').length,
+      reserved: reservedMeteorites.length,
       sold: meteorites.filter((m) => m.saleStatus === 'sold').length,
+      reservedNormal: reservedSubStatusCounts.normal,
+      reservedExpiringSoon: reservedSubStatusCounts.expiringSoon,
+      reservedExpired: reservedSubStatusCounts.expired,
     };
 
     const categoryCounts = METEORITE_CATEGORIES.map((category) => ({
@@ -83,6 +101,8 @@ const StatisticsDashboard = () => {
     weightCounts,
     maxWeightCount,
   } = stats;
+
+  const { reservedNormal, reservedExpiringSoon, reservedExpired } = saleStatusCounts;
 
   const StatCard = ({
     icon: Icon,
@@ -163,13 +183,34 @@ const StatisticsDashboard = () => {
             subValue={`占比 ${totalCount > 0 ? Math.round((saleStatusCounts.available / totalCount) * 100) : 0}%`}
             colorClass="bg-archive-available"
           />
-          <StatCard
-            icon={Clock}
-            label={SALE_STATUS_LABELS.reserved}
-            value={saleStatusCounts.reserved}
-            subValue={`占比 ${totalCount > 0 ? Math.round((saleStatusCounts.reserved / totalCount) * 100) : 0}%`}
-            colorClass="bg-archive-reserved"
-          />
+          <div className="bg-archive-card/70 backdrop-blur-sm rounded-lg archive-border p-5 card-hover">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="text-sm text-archive-cream/60 mb-1">{SALE_STATUS_LABELS.reserved}</p>
+                <p className="text-3xl font-display font-bold text-archive-cream">{saleStatusCounts.reserved}</p>
+                <p className="text-xs text-archive-cream/40 mt-1">
+                  占比 {totalCount > 0 ? Math.round((saleStatusCounts.reserved / totalCount) * 100) : 0}%
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-archive-reserved flex items-center justify-center">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-archive-reserved/20">
+                <span className="w-2 h-2 rounded-full bg-archive-reserved" />
+                <span className="text-xs text-archive-cream/70">正常 {reservedNormal}</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/20">
+                <Timer className="w-3 h-3 text-amber-400" />
+                <span className="text-xs text-archive-cream/70">即将到期 {reservedExpiringSoon}</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/20">
+                <AlertTriangle className="w-3 h-3 text-red-400" />
+                <span className="text-xs text-archive-cream/70">已到期 {reservedExpired}</span>
+              </div>
+            </div>
+          </div>
           <StatCard
             icon={CheckCircle}
             label={SALE_STATUS_LABELS.sold}

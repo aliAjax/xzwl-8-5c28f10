@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig, VALID_STATUS_TRANSITIONS, SaleStatusRecord, FilterView, SortState, SALE_STATUS_SORT_ORDER } from '@/types';
+import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig, VALID_STATUS_TRANSITIONS, SaleStatusRecord, FilterView, SortState, SALE_STATUS_SORT_ORDER, ReservationInfo, ReservedSubStatus, getReservedSubStatus } from '@/types';
 import { mockMeteorites } from '@/data/mockData';
 
 const FILTER_VIEWS_STORAGE_KEY = 'meteorite-filter-views';
@@ -528,7 +528,7 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
-  addSaleStatusRecord: (meteoriteId: string, newStatus: SaleStatus, remark: string, operator: string) => {
+  addSaleStatusRecord: (meteoriteId: string, newStatus: SaleStatus, remark: string, operator: string, reservationInfo?: ReservationInfo) => {
     const { meteorites, pendingStatusRecord } = get();
     if (!pendingStatusRecord || pendingStatusRecord.meteoriteId !== meteoriteId) {
       return { success: false, reason: '请先开始添加状态记录' };
@@ -551,6 +551,8 @@ export const useStore = create<StoreState>((set, get) => ({
       timestamp: new Date().toISOString(),
       operator: operator || '系统',
       remark: remark || '状态变更',
+      reservationInfo: newStatus === 'reserved' ? reservationInfo : undefined,
+      originalReservationInfo: newStatus === 'available' && pendingStatusRecord.originalStatus === 'reserved' ? meteorite.reservationInfo : undefined,
     };
     const newMeteorites = meteorites.map((m) =>
       m.id === meteoriteId
@@ -558,6 +560,7 @@ export const useStore = create<StoreState>((set, get) => ({
             ...m,
             saleStatus: newStatus,
             saleStatusHistory: [...m.saleStatusHistory, newRecord],
+            reservationInfo: newStatus === 'reserved' ? reservationInfo : undefined,
           }
         : m
     );
@@ -570,6 +573,56 @@ export const useStore = create<StoreState>((set, get) => ({
       selectedMeteorite: newMeteorites.find((m) => m.id === meteoriteId) || null,
     });
     return { success: true };
+  },
+
+  releaseReservation: (meteoriteId: string, remark: string, operator: string) => {
+    const { meteorites } = get();
+    const meteorite = meteorites.find((m) => m.id === meteoriteId);
+    if (!meteorite) {
+      return { success: false, reason: '未找到该藏品' };
+    }
+    if (meteorite.saleStatus !== 'reserved') {
+      return { success: false, reason: '该藏品当前不处于预留状态' };
+    }
+    const newRecord: SaleStatusRecord = {
+      id: `${meteoriteId}-history-${Date.now()}`,
+      meteoriteId,
+      fromStatus: 'reserved',
+      toStatus: 'available',
+      timestamp: new Date().toISOString(),
+      operator: operator || '系统',
+      remark: remark || '预留到期解除',
+      originalReservationInfo: meteorite.reservationInfo,
+    };
+    const newMeteorites = meteorites.map((m) =>
+      m.id === meteoriteId
+        ? {
+            ...m,
+            saleStatus: 'available' as SaleStatus,
+            saleStatusHistory: [...m.saleStatusHistory, newRecord],
+            reservationInfo: undefined,
+          }
+        : m
+    );
+    persistMeteorites(newMeteorites);
+    set({
+      meteorites: newMeteorites,
+      selectedMeteorite: newMeteorites.find((m) => m.id === meteoriteId) || null,
+    });
+    return { success: true };
+  },
+
+  getReservedMeteoritesWithSubStatus: () => {
+    const { meteorites } = get();
+    return meteorites
+      .filter((m) => m.saleStatus === 'reserved')
+      .map((meteorite) => {
+        const subStatus = getReservedSubStatus(meteorite.reservationInfo);
+        return {
+          meteorite,
+          subStatus: (subStatus || 'normal') as ReservedSubStatus,
+        };
+      });
   },
 
   getSaleStatusHistory: (meteoriteId: string) => {

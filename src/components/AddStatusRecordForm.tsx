@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { X, Save, AlertCircle, User, MessageSquare, Tag } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Save, AlertCircle, User, MessageSquare, Tag, Calendar, UserPlus } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { SaleStatus, SALE_STATUS_LABELS, VALID_STATUS_TRANSITIONS } from '@/types';
+import { SaleStatus, SALE_STATUS_LABELS, VALID_STATUS_TRANSITIONS, ReservationInfo } from '@/types';
 
 interface AddStatusRecordFormProps {
   meteoriteId: string;
@@ -18,14 +18,34 @@ const AddStatusRecordForm = ({
   onSuccess,
   onCancel,
 }: AddStatusRecordFormProps) => {
-  const { addSaleStatusRecord } = useStore();
+  const { addSaleStatusRecord, meteorites } = useStore();
   const [newStatus, setNewStatus] = useState<SaleStatus>(initialTargetStatus || currentStatus);
   const [remark, setRemark] = useState('');
   const [operator, setOperator] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expiresAt, setExpiresAt] = useState('');
+  const [reservedBy, setReservedBy] = useState('');
 
   const availableTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
+  const showReservationFields = newStatus === 'reserved';
+
+  useEffect(() => {
+    if (newStatus === 'reserved') {
+      const meteorite = meteorites.find((m) => m.id === meteoriteId);
+      if (meteorite?.reservationInfo) {
+        setExpiresAt(meteorite.reservationInfo.expiresAt.split('T')[0]);
+        setReservedBy(meteorite.reservationInfo.reservedBy);
+      } else {
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + 7);
+        setExpiresAt(defaultDate.toISOString().split('T')[0]);
+      }
+    } else {
+      setExpiresAt('');
+      setReservedBy('');
+    }
+  }, [newStatus, meteoriteId, meteorites]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,11 +58,32 @@ const AddStatusRecordForm = ({
       return;
     }
 
+    let reservationInfo: ReservationInfo | undefined;
+    if (showReservationFields) {
+      if (!expiresAt) {
+        setError('请选择预留到期时间');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!reservedBy.trim()) {
+        setError('请输入预留人');
+        setIsSubmitting(false);
+        return;
+      }
+      const expireDate = new Date(expiresAt);
+      expireDate.setHours(23, 59, 59, 999);
+      reservationInfo = {
+        expiresAt: expireDate.toISOString(),
+        reservedBy: reservedBy.trim(),
+      };
+    }
+
     const result = addSaleStatusRecord(
       meteoriteId,
       newStatus,
       remark.trim(),
-      operator.trim()
+      operator.trim(),
+      reservationInfo
     );
 
     if (result.success) {
@@ -116,6 +157,44 @@ const AddStatusRecordForm = ({
             className="w-full px-4 py-3 bg-archive-bg/50 border border-archive-gold/20 rounded-lg text-archive-cream placeholder-archive-cream/30 focus:outline-none focus:ring-2 focus:ring-archive-gold/30 focus:border-archive-gold/50 transition-all"
           />
         </div>
+
+        {showReservationFields && (
+          <>
+            <div>
+              <label className="flex items-center gap-2 text-archive-cream/70 text-sm mb-2">
+                <Calendar className="w-4 h-4 text-archive-gold" />
+                <span>预留到期时间 <span className="text-red-400">*</span></span>
+              </label>
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(e) => {
+                  setExpiresAt(e.target.value);
+                  if (error) setError('');
+                }}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 bg-archive-bg/50 border border-archive-gold/20 rounded-lg text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/30 focus:border-archive-gold/50 transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-archive-cream/70 text-sm mb-2">
+                <UserPlus className="w-4 h-4 text-archive-gold" />
+                <span>预留人 <span className="text-red-400">*</span></span>
+              </label>
+              <input
+                type="text"
+                value={reservedBy}
+                onChange={(e) => {
+                  setReservedBy(e.target.value);
+                  if (error) setError('');
+                }}
+                placeholder="请输入预留人姓名"
+                className="w-full px-4 py-3 bg-archive-bg/50 border border-archive-gold/20 rounded-lg text-archive-cream placeholder-archive-cream/30 focus:outline-none focus:ring-2 focus:ring-archive-gold/30 focus:border-archive-gold/50 transition-all"
+              />
+            </div>
+          </>
+        )}
 
         <div>
           <label className="flex items-center gap-2 text-archive-cream/70 text-sm mb-2">

@@ -1,5 +1,12 @@
 export type SaleStatus = 'available' | 'reserved' | 'sold';
 
+export type ReservedSubStatus = 'normal' | 'expiringSoon' | 'expired';
+
+export interface ReservationInfo {
+  expiresAt: string;
+  reservedBy: string;
+}
+
 export interface SaleStatusRecord {
   id: string;
   meteoriteId: string;
@@ -8,6 +15,8 @@ export interface SaleStatusRecord {
   timestamp: string;
   operator: string;
   remark: string;
+  reservationInfo?: ReservationInfo;
+  originalReservationInfo?: ReservationInfo;
 }
 
 export const VALID_STATUS_TRANSITIONS: Record<SaleStatus, SaleStatus[]> = {
@@ -64,6 +73,7 @@ export interface Meteorite {
   certificateInfo: string;
   discoveredDate: string;
   saleStatusHistory: SaleStatusRecord[];
+  reservationInfo?: ReservationInfo;
 }
 
 export interface FilterState {
@@ -206,8 +216,10 @@ export interface StoreState {
   validateStatusTransition: (meteoriteId: string, newStatus: SaleStatus, fromStatus?: SaleStatus) => { valid: boolean; reason?: string };
   startAddingStatusRecord: (meteoriteId: string, newStatus: SaleStatus) => boolean;
   cancelAddingStatusRecord: () => void;
-  addSaleStatusRecord: (meteoriteId: string, newStatus: SaleStatus, remark: string, operator: string) => { success: boolean; reason?: string };
+  addSaleStatusRecord: (meteoriteId: string, newStatus: SaleStatus, remark: string, operator: string, reservationInfo?: ReservationInfo) => { success: boolean; reason?: string };
   getSaleStatusHistory: (meteoriteId: string) => SaleStatusRecord[];
+  releaseReservation: (meteoriteId: string, remark: string, operator: string) => { success: boolean; reason?: string };
+  getReservedMeteoritesWithSubStatus: () => { meteorite: Meteorite; subStatus: ReservedSubStatus }[];
   saveFilterView: (name: string) => void;
   deleteFilterView: (id: string) => void;
   applyFilterView: (id: string) => void;
@@ -247,6 +259,48 @@ export const SALE_STATUS_COLORS: Record<SaleStatus, string> = {
   available: 'bg-archive-available',
   reserved: 'bg-archive-reserved',
   sold: 'bg-archive-sold',
+};
+
+export const RESERVED_SUBSTATUS_LABELS: Record<ReservedSubStatus, string> = {
+  normal: '正常预留',
+  expiringSoon: '即将到期',
+  expired: '已到期',
+};
+
+export const RESERVED_SUBSTATUS_COLORS: Record<ReservedSubStatus, string> = {
+  normal: 'bg-archive-reserved',
+  expiringSoon: 'bg-amber-500',
+  expired: 'bg-red-500',
+};
+
+export const RESERVED_SUBSTATUS_TEXT_COLORS: Record<ReservedSubStatus, string> = {
+  normal: 'text-archive-reserved',
+  expiringSoon: 'text-amber-400',
+  expired: 'text-red-400',
+};
+
+export const RESERVATION_EXPIRING_SOON_DAYS = 3;
+
+export const getReservedSubStatus = (reservationInfo?: ReservationInfo): ReservedSubStatus | null => {
+  if (!reservationInfo?.expiresAt) return null;
+  const now = new Date();
+  const expiresAt = new Date(reservationInfo.expiresAt);
+  const diffTime = expiresAt.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 'expired';
+  if (diffDays <= RESERVATION_EXPIRING_SOON_DAYS) return 'expiringSoon';
+  return 'normal';
+};
+
+export const formatDateTime = (isoString: string) => {
+  const date = new Date(isoString);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 export const DEFAULT_CAPACITY_LIMIT = 10;

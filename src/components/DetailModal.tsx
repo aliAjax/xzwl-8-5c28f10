@@ -15,9 +15,12 @@ import {
   Plus,
   AlertCircle,
   CheckCircle,
+  Unlock,
+  UserPlus,
+  AlertTriangle,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { SALE_STATUS_COLORS, SALE_STATUS_LABELS, SaleStatus, VALID_STATUS_TRANSITIONS } from '@/types';
+import { SALE_STATUS_COLORS, SALE_STATUS_LABELS, SaleStatus, VALID_STATUS_TRANSITIONS, getReservedSubStatus, RESERVED_SUBSTATUS_LABELS, RESERVED_SUBSTATUS_COLORS, RESERVED_SUBSTATUS_TEXT_COLORS, formatDateTime, RESERVATION_EXPIRING_SOON_DAYS } from '@/types';
 import SaleStatusTimeline from './SaleStatusTimeline';
 import AddStatusRecordForm from './AddStatusRecordForm';
 
@@ -31,9 +34,15 @@ const DetailModal = () => {
     getSaleStatusHistory,
     startAddingStatusRecord,
     cancelAddingStatusRecord,
+    releaseReservation,
   } = useStore();
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showReleaseDialog, setShowReleaseDialog] = useState(false);
+  const [releaseOperator, setReleaseOperator] = useState('');
+  const [releaseRemark, setReleaseRemark] = useState('');
+  const [releaseError, setReleaseError] = useState('');
+  const [isReleasing, setIsReleasing] = useState(false);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -74,6 +83,48 @@ const DetailModal = () => {
 
   const handleRecordCancel = () => {
     cancelAddingStatusRecord();
+  };
+
+  const handleOpenReleaseDialog = () => {
+    setShowReleaseDialog(true);
+    setReleaseOperator('');
+    setReleaseRemark('');
+    setReleaseError('');
+  };
+
+  const handleCloseReleaseDialog = () => {
+    setShowReleaseDialog(false);
+    setReleaseOperator('');
+    setReleaseRemark('');
+    setReleaseError('');
+  };
+
+  const handleReleaseReservation = (e: React.FormEvent) => {
+    e.preventDefault();
+    setReleaseError('');
+    setIsReleasing(true);
+
+    if (!releaseOperator.trim()) {
+      setReleaseError('请输入操作人');
+      setIsReleasing(false);
+      return;
+    }
+
+    const result = releaseReservation(
+      selectedMeteorite!.id,
+      releaseRemark.trim(),
+      releaseOperator.trim()
+    );
+
+    if (result.success) {
+      setShowReleaseDialog(false);
+      setSuccessMessage('预留已成功解除，状态已变更为在售！');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } else {
+      setReleaseError(result.reason || '解除失败，请重试');
+    }
+    setIsReleasing(false);
   };
 
   if (!isModalOpen || !selectedMeteorite) return null;
@@ -204,17 +255,39 @@ const DetailModal = () => {
                   <div className="bg-archive-bg/50 rounded-lg p-4 archive-border text-center">
                     <ShoppingBag className="w-5 h-5 text-archive-gold mx-auto mb-2" />
                     <p className="text-xs text-archive-cream/50 mb-1">出售状态</p>
-                    <p
-                      className={`font-medium text-sm ${
-                        selectedMeteorite.saleStatus === 'available'
-                          ? 'text-green-400'
-                          : selectedMeteorite.saleStatus === 'reserved'
-                          ? 'text-amber-400'
-                          : 'text-red-400'
-                      }`}
-                    >
-                      {SALE_STATUS_LABELS[selectedMeteorite.saleStatus]}
-                    </p>
+                    {selectedMeteorite.saleStatus === 'reserved' ? (
+                      <div>
+                        <p
+                          className={`font-medium text-sm ${
+                            RESERVED_SUBSTATUS_TEXT_COLORS[getReservedSubStatus(selectedMeteorite.reservationInfo) || 'normal']
+                          }`}
+                        >
+                          {RESERVED_SUBSTATUS_LABELS[getReservedSubStatus(selectedMeteorite.reservationInfo) || 'normal']}
+                        </p>
+                        {selectedMeteorite.reservationInfo && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-[10px] text-archive-cream/50 flex items-center justify-center gap-1">
+                              <UserPlus className="w-3 h-3" />
+                              预留人：{selectedMeteorite.reservationInfo.reservedBy}
+                            </p>
+                            <p className="text-[10px] text-archive-cream/50 flex items-center justify-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              到期：{formatDateTime(selectedMeteorite.reservationInfo.expiresAt)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p
+                        className={`font-medium text-sm ${
+                          selectedMeteorite.saleStatus === 'available'
+                            ? 'text-green-400'
+                            : 'text-red-400'
+                        }`}
+                      >
+                        {SALE_STATUS_LABELS[selectedMeteorite.saleStatus]}
+                      </p>
+                    )}
                   </div>
                   <div className="bg-archive-bg/50 rounded-lg p-4 archive-border text-center">
                     <Hash className="w-5 h-5 text-archive-gold mx-auto mb-2" />
@@ -260,7 +333,16 @@ const DetailModal = () => {
                     <span>销售流转记录</span>
                   </h3>
                   {!isAddingStatusRecord && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {selectedMeteorite.saleStatus === 'reserved' && (
+                        <button
+                          onClick={handleOpenReleaseDialog}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:opacity-90 bg-gradient-to-r from-amber-500 to-orange-500"
+                        >
+                          <Unlock className="w-3 h-3" />
+                          一键解除预留
+                        </button>
+                      )}
                       {VALID_STATUS_TRANSITIONS[selectedMeteorite.saleStatus].length > 0 ? (
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-archive-cream/50">变更为：</span>
@@ -311,6 +393,106 @@ const DetailModal = () => {
           </div>
         </div>
       </div>
+
+      {showReleaseDialog && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleCloseReleaseDialog} />
+          <div className="relative w-full max-w-md bg-archive-card rounded-2xl archive-border overflow-hidden shadow-2xl shadow-black/50 animate-slide-up">
+            <div className="sticky top-0 z-10 bg-archive-card border-b border-archive-gold/20 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center">
+                  <Unlock className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-bold text-archive-cream">解除预留</h2>
+                  <p className="text-archive-cream/50 text-sm">将状态变更为在售</p>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseReleaseDialog}
+                className="w-8 h-8 rounded-full bg-archive-bg/50 flex items-center justify-center text-archive-cream/50 hover:text-archive-cream hover:bg-archive-bg transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {selectedMeteorite?.reservationInfo && (
+              <div className="px-6 pt-4">
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                  <p className="text-sm text-amber-400 font-medium mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    原预留信息
+                  </p>
+                  <div className="space-y-1 text-sm text-archive-cream/70">
+                    <p>预留人：<span className="text-archive-cream">{selectedMeteorite.reservationInfo.reservedBy}</span></p>
+                    <p>到期时间：<span className="text-archive-cream">{formatDateTime(selectedMeteorite.reservationInfo.expiresAt)}</span></p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleReleaseReservation} className="p-6 space-y-4">
+              <div>
+                <label className="flex items-center gap-2 text-archive-cream/70 text-sm mb-2">
+                  <User className="w-4 h-4 text-archive-gold" />
+                  <span>操作人 <span className="text-red-400">*</span></span>
+                </label>
+                <input
+                  type="text"
+                  value={releaseOperator}
+                  onChange={(e) => {
+                    setReleaseOperator(e.target.value);
+                    if (releaseError) setReleaseError('');
+                  }}
+                  placeholder="请输入操作人姓名"
+                  className="w-full px-4 py-3 bg-archive-bg/50 border border-archive-gold/20 rounded-lg text-archive-cream placeholder-archive-cream/30 focus:outline-none focus:ring-2 focus:ring-archive-gold/30 focus:border-archive-gold/50 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-archive-cream/70 text-sm mb-2">
+                  <MessageSquare className="w-4 h-4 text-archive-gold" />
+                  <span>解除原因</span>
+                </label>
+                <textarea
+                  value={releaseRemark}
+                  onChange={(e) => setReleaseRemark(e.target.value)}
+                  rows={3}
+                  placeholder="请输入解除预留的原因（可选）"
+                  className="w-full px-4 py-3 bg-archive-bg/50 border border-archive-gold/20 rounded-lg text-archive-cream placeholder-archive-cream/30 focus:outline-none focus:ring-2 focus:ring-archive-gold/30 focus:border-archive-gold/50 transition-all resize-none"
+                />
+              </div>
+
+              {releaseError && (
+                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <p className="text-sm text-red-400">{releaseError}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseReleaseDialog}
+                  disabled={isReleasing}
+                  className="px-5 py-2.5 bg-archive-bg/50 border border-archive-gold/20 rounded-lg text-archive-cream/70 hover:text-archive-cream hover:border-archive-gold/40 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <X className="w-4 h-4" />
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReleasing}
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-amber-500/30 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Unlock className="w-4 h-4" />
+                  {isReleasing ? '提交中...' : '确认解除'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

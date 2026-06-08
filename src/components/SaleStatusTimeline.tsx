@@ -1,5 +1,5 @@
-import { Clock, User, MessageSquare, ArrowRight } from 'lucide-react';
-import { SaleStatusRecord, SaleStatus, SALE_STATUS_LABELS, SALE_STATUS_COLORS } from '@/types';
+import { Clock, User, MessageSquare, ArrowRight, Calendar, UserPlus, Unlock } from 'lucide-react';
+import { SaleStatusRecord, SaleStatus, SALE_STATUS_LABELS, SALE_STATUS_COLORS, formatDateTime } from '@/types';
 
 interface SaleStatusTimelineProps {
   records: SaleStatusRecord[];
@@ -87,6 +87,44 @@ const SaleStatusTimeline = ({ records }: SaleStatusTimelineProps) => {
                 <div className="flex items-start gap-2 text-sm text-archive-cream/70">
                   <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0 text-archive-gold/50" />
                   <span>{record.remark}</span>
+                </div>
+              )}
+
+              {record.reservationInfo && (
+                <div className="mt-3 p-3 bg-archive-reserved/10 border border-archive-reserved/30 rounded-lg">
+                  <p className="text-xs text-archive-reserved font-medium mb-2 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    预留信息
+                  </p>
+                  <div className="space-y-1 text-xs text-archive-cream/70">
+                    <p className="flex items-center gap-2">
+                      <UserPlus className="w-3 h-3 text-archive-gold/50" />
+                      预留人：<span className="text-archive-cream">{record.reservationInfo.reservedBy}</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Clock className="w-3 h-3 text-archive-gold/50" />
+                      到期时间：<span className="text-archive-cream">{formatDateTime(record.reservationInfo.expiresAt)}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {record.originalReservationInfo && (
+                <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-xs text-amber-400 font-medium mb-2 flex items-center gap-1">
+                    <Unlock className="w-3 h-3" />
+                    原预留信息
+                  </p>
+                  <div className="space-y-1 text-xs text-archive-cream/70">
+                    <p className="flex items-center gap-2">
+                      <UserPlus className="w-3 h-3 text-archive-gold/50" />
+                      预留人：<span className="text-archive-cream">{record.originalReservationInfo.reservedBy}</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Clock className="w-3 h-3 text-archive-gold/50" />
+                      到期时间：<span className="text-archive-cream">{formatDateTime(record.originalReservationInfo.expiresAt)}</span>
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

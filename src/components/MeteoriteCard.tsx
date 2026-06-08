@@ -1,5 +1,5 @@
-import { MapPin, Scale, FileText, Eye } from 'lucide-react';
-import { Meteorite, SALE_STATUS_COLORS, SALE_STATUS_LABELS } from '@/types';
+import { MapPin, Scale, FileText, Eye, Clock, AlertTriangle } from 'lucide-react';
+import { Meteorite, SALE_STATUS_COLORS, SALE_STATUS_LABELS, getReservedSubStatus, RESERVED_SUBSTATUS_LABELS, RESERVED_SUBSTATUS_COLORS, formatDateTime } from '@/types';
 import { useStore } from '@/store/useStore';
 
 interface MeteoriteCardProps {
@@ -9,6 +9,39 @@ interface MeteoriteCardProps {
 
 const MeteoriteCard = ({ meteorite, index }: MeteoriteCardProps) => {
   const { openModal } = useStore();
+
+  const reservedSubStatus = meteorite.saleStatus === 'reserved' 
+    ? getReservedSubStatus(meteorite.reservationInfo) 
+    : null;
+
+  const getStatusBadge = () => {
+    if (meteorite.saleStatus !== 'reserved' || !reservedSubStatus) {
+      return (
+        <div
+          className={`px-2 py-1 rounded-full text-xs font-medium text-white ${SALE_STATUS_COLORS[meteorite.saleStatus]}`}
+        >
+          {SALE_STATUS_LABELS[meteorite.saleStatus]}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <div
+          className={`px-2 py-1 rounded-full text-xs font-medium text-white ${RESERVED_SUBSTATUS_COLORS[reservedSubStatus]} flex items-center gap-1`}
+        >
+          {reservedSubStatus === 'expired' && <AlertTriangle className="w-3 h-3" />}
+          {reservedSubStatus === 'expiringSoon' && <Clock className="w-3 h-3" />}
+          {RESERVED_SUBSTATUS_LABELS[reservedSubStatus]}
+        </div>
+        {meteorite.reservationInfo && (
+          <div className="text-[10px] text-archive-cream/60">
+            {meteorite.reservationInfo.reservedBy} · {formatDateTime(meteorite.reservationInfo.expiresAt)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -20,11 +53,7 @@ const MeteoriteCard = ({ meteorite, index }: MeteoriteCardProps) => {
         <div className="file-tag">
           {meteorite.id}
         </div>
-        <div
-          className={`px-2 py-1 rounded-full text-xs font-medium text-white ${SALE_STATUS_COLORS[meteorite.saleStatus]}`}
-        >
-          {SALE_STATUS_LABELS[meteorite.saleStatus]}
-        </div>
+        {getStatusBadge()}
       </div>
 
       <div className="relative aspect-square overflow-hidden">
