@@ -29,6 +29,7 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedMeteorite: null,
   isModalOpen: false,
   isAddModalOpen: false,
+  isBatchImportModalOpen: false,
   isCertificateArchiveOpen: false,
   isCapacityPlannerOpen: false,
   isEditing: false,
@@ -65,6 +66,12 @@ export const useStore = create<StoreState>((set, get) => ({
   closeAddModal: () =>
     set({ isAddModalOpen: false }),
 
+  openBatchImportModal: () =>
+    set({ isBatchImportModalOpen: true }),
+
+  closeBatchImportModal: () =>
+    set({ isBatchImportModalOpen: false }),
+
   openCertificateArchive: () =>
     set({ isCertificateArchiveOpen: true }),
 
@@ -88,6 +95,30 @@ export const useStore = create<StoreState>((set, get) => ({
         displayCaseCapacities: newCapacities,
       };
     }),
+
+  batchAddMeteorites: (meteorites: Meteorite[]) => {
+    const { meteorites: existingMeteorites, displayCaseCapacities } = get();
+    const newCapacities = { ...displayCaseCapacities };
+    const newIds = new Set(existingMeteorites.map(m => m.id));
+    const uniqueMeteorites = meteorites.filter(m => {
+      if (newIds.has(m.id)) return false;
+      newIds.add(m.id);
+      return true;
+    });
+
+    uniqueMeteorites.forEach(m => {
+      if (!newCapacities[m.displayCase]) {
+        newCapacities[m.displayCase] = { capacityLimit: DEFAULT_CAPACITY_LIMIT };
+      }
+    });
+
+    set((state) => ({
+      meteorites: [...uniqueMeteorites, ...state.meteorites],
+      displayCaseCapacities: newCapacities,
+    }));
+
+    return uniqueMeteorites.length;
+  },
 
   updateMeteorite: (id: string, updates: Partial<Meteorite>) => {
     const { meteorites, displayCaseCapacities } = get();

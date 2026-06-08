@@ -50,12 +50,31 @@ export interface DisplayCaseCapacityData {
   statusDistribution: Record<SaleStatus, number>;
 }
 
+export interface ImportError {
+  row: number;
+  field: string;
+  message: string;
+  value?: string;
+}
+
+export interface ImportPreviewData {
+  headers: string[];
+  headerMapping: Record<string, string>;
+  validRows: Meteorite[];
+  errorRows: ImportError[];
+  duplicateIds: string[];
+  totalRows: number;
+  validCount: number;
+  errorCount: number;
+}
+
 export interface StoreState {
   meteorites: Meteorite[];
   filters: FilterState;
   selectedMeteorite: Meteorite | null;
   isModalOpen: boolean;
   isAddModalOpen: boolean;
+  isBatchImportModalOpen: boolean;
   isCertificateArchiveOpen: boolean;
   isCapacityPlannerOpen: boolean;
   isEditing: boolean;
@@ -69,11 +88,14 @@ export interface StoreState {
   closeModal: () => void;
   openAddModal: () => void;
   closeAddModal: () => void;
+  openBatchImportModal: () => void;
+  closeBatchImportModal: () => void;
   openCertificateArchive: () => void;
   closeCertificateArchive: () => void;
   openCapacityPlanner: () => void;
   closeCapacityPlanner: () => void;
   addMeteorite: (meteorite: Meteorite) => void;
+  batchAddMeteorites: (meteorites: Meteorite[]) => number;
   updateMeteorite: (id: string, updates: Partial<Meteorite>) => Meteorite | undefined;
   startEditing: () => void;
   cancelEditing: () => void;
