@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig } from '@/types';
+import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig, VALID_STATUS_TRANSITIONS, SaleStatusRecord } from '@/types';
 import { mockMeteorites } from '@/data/mockData';
 
 const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
@@ -33,6 +33,8 @@ export const useStore = create<StoreState>((set, get) => ({
   isCertificateArchiveOpen: false,
   isCapacityPlannerOpen: false,
   isEditing: false,
+  isAddingStatusRecord: false,
+  pendingStatusRecord: null,
   viewMode: 'list' as ViewMode,
   displayCaseCapacities: getInitialDisplayCaseCapacities(),
 
@@ -221,6 +223,123 @@ export const useStore = create<StoreState>((set, get) => ({
         statusDistribution,
       };
     });
+  },
+
+  validateStatusTransition: (meteoriteId: string, newStatus: SaleStatus, fromStatus?: SaleStatus) => {
+    const { meteorites } = get();
+    const meteorite = meteorites.find((m) => m.id === meteoriteId);
+    if (!meteorite) {
+      return { valid: false, reason: '未找到该藏品' };
+    }
+    const currentStatus = fromStatus ?? meteorite.saleStatus;
+    if (currentStatus === newStatus) {
+      return { valid: false, reason: '目标状态与当前状态相同' };
+    }
+    const validTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
+    if (!validTransitions.includes(newStatus)) {
+      return { valid: false, reason: `不允许从"${currentStatus}"跳转到"${newStatus}"` };
+    }
+    return { valid: true };
+  },
+
+  startAddingStatusRecord: (meteoriteId: string, newStatus: SaleStatus) => {
+    const { meteorites, isAddingStatusRecord } = get();
+    if (isAddingStatusRecord) {
+      return false;
+    }
+    const meteorite = meteorites.find((m) => m.id === meteoriteId);
+    if (!meteorite) {
+      return false;
+    }
+    const validation = get().validateStatusTransition(meteoriteId, newStatus);
+    if (!validation.valid) {
+      return false;
+    }
+    const originalStatus = meteorite.saleStatus;
+    const newMeteorites = meteorites.map((m) =>
+      m.id === meteoriteId ? { ...m, saleStatus: newStatus } : m
+    );
+    set({
+      meteorites: newMeteorites,
+      isAddingStatusRecord: true,
+      pendingStatusRecord: {
+        meteoriteId,
+        newStatus,
+        originalStatus,
+      },
+      selectedMeteorite: newMeteorites.find((m) => m.id === meteoriteId) || null,
+    });
+    return true;
+  },
+
+  cancelAddingStatusRecord: () => {
+    const { pendingStatusRecord, meteorites } = get();
+    if (!pendingStatusRecord) {
+      return;
+    }
+    const { meteoriteId, originalStatus } = pendingStatusRecord;
+    const newMeteorites = meteorites.map((m) =>
+      m.id === meteoriteId ? { ...m, saleStatus: originalStatus } : m
+    );
+    set({
+      meteorites: newMeteorites,
+      isAddingStatusRecord: false,
+      pendingStatusRecord: null,
+      selectedMeteorite: newMeteorites.find((m) => m.id === meteoriteId) || null,
+    });
+  },
+
+  addSaleStatusRecord: (meteoriteId: string, newStatus: SaleStatus, remark: string, operator: string) => {
+    const { meteorites, pendingStatusRecord } = get();
+    if (!pendingStatusRecord || pendingStatusRecord.meteoriteId !== meteoriteId) {
+      return { success: false, reason: '请先开始添加状态记录' };
+    }
+    const validation = get().validateStatusTransition(meteoriteId, newStatus, pendingStatusRecord.originalStatus);
+    if (!validation.valid) {
+      get().cancelAddingStatusRecord();
+      return { success: false, reason: validation.reason };
+    }
+    const meteorite = meteorites.find((m) => m.id === meteoriteId);
+    if (!meteorite) {
+      get().cancelAddingStatusRecord();
+      return { success: false, reason: '未找到该藏品' };
+    }
+    const newRecord: SaleStatusRecord = {
+      id: `${meteoriteId}-history-${Date.now()}`,
+      meteoriteId,
+      fromStatus: pendingStatusRecord.originalStatus,
+      toStatus: newStatus,
+      timestamp: new Date().toISOString(),
+      operator: operator || '系统',
+      remark: remark || '状态变更',
+    };
+    const newMeteorites = meteorites.map((m) =>
+      m.id === meteoriteId
+        ? {
+            ...m,
+            saleStatus: newStatus,
+            saleStatusHistory: [...m.saleStatusHistory, newRecord],
+          }
+        : m
+    );
+    set({
+      meteorites: newMeteorites,
+      isAddingStatusRecord: false,
+      pendingStatusRecord: null,
+      selectedMeteorite: newMeteorites.find((m) => m.id === meteoriteId) || null,
+    });
+    return { success: true };
+  },
+
+  getSaleStatusHistory: (meteoriteId: string) => {
+    const { meteorites } = get();
+    const meteorite = meteorites.find((m) => m.id === meteoriteId);
+    if (!meteorite) {
+      return [];
+    }
+    return [...meteorite.saleStatusHistory].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
   },
 }));
 

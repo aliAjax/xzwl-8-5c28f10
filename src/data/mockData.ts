@@ -1,4 +1,65 @@
-import { Meteorite } from '@/types';
+import { Meteorite, SaleStatusRecord, SaleStatus } from '@/types';
+
+const generateInitialHistory = (meteoriteId: string, currentStatus: SaleStatus): SaleStatusRecord[] => {
+  const history: SaleStatusRecord[] = [];
+  const baseTime = new Date('2024-01-01T10:00:00').getTime();
+
+  history.push({
+    id: `${meteoriteId}-history-1`,
+    meteoriteId,
+    fromStatus: null,
+    toStatus: 'available',
+    timestamp: new Date(baseTime).toISOString(),
+    operator: '系统初始化',
+    remark: '藏品入库，初始状态为在售',
+  });
+
+  if (currentStatus === 'reserved') {
+    history.push({
+      id: `${meteoriteId}-history-2`,
+      meteoriteId,
+      fromStatus: 'available',
+      toStatus: 'reserved',
+      timestamp: new Date(baseTime + 86400000 * 30).toISOString(),
+      operator: '张经理',
+      remark: '客户意向确认，预留藏品',
+    });
+  } else if (currentStatus === 'sold') {
+    const hasReservedStage = Math.random() > 0.5;
+    if (hasReservedStage) {
+      history.push({
+        id: `${meteoriteId}-history-2`,
+        meteoriteId,
+        fromStatus: 'available',
+        toStatus: 'reserved',
+        timestamp: new Date(baseTime + 86400000 * 15).toISOString(),
+        operator: '李经理',
+        remark: '客户支付定金，预留藏品',
+      });
+      history.push({
+        id: `${meteoriteId}-history-3`,
+        meteoriteId,
+        fromStatus: 'reserved',
+        toStatus: 'sold',
+        timestamp: new Date(baseTime + 86400000 * 45).toISOString(),
+        operator: '王主管',
+        remark: '客户付清全款，交易完成',
+      });
+    } else {
+      history.push({
+        id: `${meteoriteId}-history-2`,
+        meteoriteId,
+        fromStatus: 'available',
+        toStatus: 'sold',
+        timestamp: new Date(baseTime + 86400000 * 60).toISOString(),
+        operator: '赵经理',
+        remark: '客户直接购买，交易完成',
+      });
+    }
+  }
+
+  return history;
+};
 
 export const mockMeteorites: Meteorite[] = [
   {
@@ -15,6 +76,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=iron%20meteorite%20slice%20with%20Widmanstatten%20pattern%20on%20dark%20velvet%20background%20museum%20display&image_size=square_hd',
     certificateInfo: '国际陨石收藏家协会(IMCA)认证证书，编号IMCA-2024-00125。经光谱分析确认为IVA组铁陨石，镍含量7.9%，钴含量0.5%。',
     discoveredDate: '1920-06-15',
+    saleStatusHistory: generateInitialHistory('MET-2024-001', 'available'),
   },
   {
     id: 'MET-2024-002',
@@ -30,6 +92,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=carbonaceous%20chondrite%20meteorite%20slice%20showing%20chondrules%20and%20CAIs%20dark%20background%20museum%20quality&image_size=square_hd',
     certificateInfo: '陨石学会(MSN)认证，编号MSN-2024-00342。类型CV3，总重量2吨，本标本85克，含有多个毫米级CAIs。',
     discoveredDate: '1969-02-08',
+    saleStatusHistory: generateInitialHistory('MET-2024-002', 'available'),
   },
   {
     id: 'MET-2024-003',
@@ -45,6 +108,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=pallasite%20meteorite%20slice%20with%20olivine%20crystals%20peridot%20in%20iron%20nickel%20matrix%20translucent%20gem%20quality&image_size=square_hd',
     certificateInfo: '全球陨石协会(GMA)认证，编号GMA-2024-00567。Pallasite类型，总重量约1吨，橄榄石含量约50%。',
     discoveredDate: '2000-09-20',
+    saleStatusHistory: generateInitialHistory('MET-2024-003', 'reserved'),
   },
   {
     id: 'MET-2024-004',
@@ -60,6 +124,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=complete%20ordinary%20chondrite%20meteorite%20with%20fusion%20crust%20dark%20desert%20stone%20on%20black%20background&image_size=square_hd',
     certificateInfo: '国际陨石收藏家协会(IMCA)认证，编号IMCA-2024-00789。类型L3.8，450克完整个体，90%以上原始融合壳。',
     discoveredDate: '2001-11-10',
+    saleStatusHistory: generateInitialHistory('MET-2024-004', 'available'),
   },
   {
     id: 'MET-2024-005',
@@ -75,6 +140,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=lunar%20meteorite%20slice%20pale%20gray%20anorthositic%20breccia%20moon%20rock%20on%20dark%20velvet%20museum&image_size=square_hd',
     certificateInfo: '陨石学会(MSN)认证，编号MSN-2024-00901。月球斜长岩角砾岩，68克切片，经同位素分析确认为月球来源。',
     discoveredDate: '2017-05-22',
+    saleStatusHistory: generateInitialHistory('MET-2024-005', 'sold'),
   },
   {
     id: 'MET-2024-006',
@@ -90,6 +156,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=mars%20meteorite%20shergottite%20slice%20dark%20gray%20basaltic%20rock%20with%20olivine%20phenocrysts%20museum%20quality&image_size=square_hd',
     certificateInfo: '全球陨石协会(GMA)认证，编号GMA-2024-01123。Shergottite类型，156克切片，确认火星来源。',
     discoveredDate: '2011-07-18',
+    saleStatusHistory: generateInitialHistory('MET-2024-006', 'available'),
   },
   {
     id: 'MET-2024-007',
@@ -105,6 +172,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=enstatite%20chondrite%20meteorite%20slice%20with%20metallic%20iron%20grains%20shiny%20reflective%20minerals%20dark%20background&image_size=square_hd',
     certificateInfo: '国际陨石收藏家协会(IMCA)认证，编号IMCA-2024-01345。类型EH4，230克切片，金属含量约25%。',
     discoveredDate: '1951-03-12',
+    saleStatusHistory: generateInitialHistory('MET-2024-007', 'available'),
   },
   {
     id: 'MET-2024-008',
@@ -120,6 +188,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=achondrite%20meteorite%20howardite%20complete%20individual%20gray%20stone%20with%20weathered%20surface%20on%20black&image_size=square_hd',
     certificateInfo: '陨石学会(MSN)认证，编号MSN-2024-01567。Howardite类型，98克完整个体，灶神星来源。',
     discoveredDate: '2010-08-05',
+    saleStatusHistory: generateInitialHistory('MET-2024-008', 'reserved'),
   },
   {
     id: 'MET-2024-009',
@@ -135,6 +204,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=gibeon%20iron%20meteorite%20slice%20etched%20Widmanstatten%20pattern%20large%20impressive%20museum%20display&image_size=square_hd',
     certificateInfo: '全球陨石协会(GMA)认证，编号GMA-2024-01789。类型IIIB，890克切片，史前坠落。',
     discoveredDate: '1836-01-01',
+    saleStatusHistory: generateInitialHistory('MET-2024-009', 'available'),
   },
   {
     id: 'MET-2024-010',
@@ -150,6 +220,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=carbonaceous%20chondrite%20CM2%20meteorite%20slice%20dark%20matrix%20with%20chondrules%20scientific%20sample%20on%20black&image_size=square_hd',
     certificateInfo: '国际陨石收藏家协会(IMCA)认证，编号IMCA-2024-02001。类型CM2，45克切片，已检测出多种氨基酸。',
     discoveredDate: '1952-04-25',
+    saleStatusHistory: generateInitialHistory('MET-2024-010', 'sold'),
   },
   {
     id: 'MET-2024-011',
@@ -165,6 +236,7 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=large%20ordinary%20chondrite%20meteorite%20complete%20individual%20with%20regmaglypts%20and%20fusion%20crust%20impressive%20specimen&image_size=square_hd',
     certificateInfo: '陨石学会(MSN)认证，编号MSN-2024-02234。类型H5，1680克完整个体，70%融合壳。',
     discoveredDate: '2017-10-15',
+    saleStatusHistory: generateInitialHistory('MET-2024-011', 'available'),
   },
   {
     id: 'MET-2024-012',
@@ -180,5 +252,6 @@ export const mockMeteorites: Meteorite[] = [
     imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=imilac%20pallasite%20meteorite%20slice%20olivine%20crystals%20in%20iron%20matrix%20gem%20quality%20museum%20display%20golden%20peridot&image_size=square_hd',
     certificateInfo: '全球陨石协会(GMA)认证，编号GMA-2024-02456。Pallasite类型，210克切片，宝石级橄榄石含量约45%。',
     discoveredDate: '1822-08-30',
+    saleStatusHistory: generateInitialHistory('MET-2024-012', 'available'),
   },
 ];

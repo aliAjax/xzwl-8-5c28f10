@@ -1,5 +1,21 @@
 export type SaleStatus = 'available' | 'reserved' | 'sold';
 
+export interface SaleStatusRecord {
+  id: string;
+  meteoriteId: string;
+  fromStatus: SaleStatus | null;
+  toStatus: SaleStatus;
+  timestamp: string;
+  operator: string;
+  remark: string;
+}
+
+export const VALID_STATUS_TRANSITIONS: Record<SaleStatus, SaleStatus[]> = {
+  available: ['reserved', 'sold'],
+  reserved: ['available', 'sold'],
+  sold: [],
+};
+
 export type ViewMode = 'list' | 'displayCase';
 
 export type MeteoriteCategory = 
@@ -26,6 +42,7 @@ export interface Meteorite {
   imageUrl: string;
   certificateInfo: string;
   discoveredDate: string;
+  saleStatusHistory: SaleStatusRecord[];
 }
 
 export interface FilterState {
@@ -78,6 +95,12 @@ export interface StoreState {
   isCertificateArchiveOpen: boolean;
   isCapacityPlannerOpen: boolean;
   isEditing: boolean;
+  isAddingStatusRecord: boolean;
+  pendingStatusRecord: {
+    meteoriteId: string;
+    newStatus: SaleStatus;
+    originalStatus: SaleStatus;
+  } | null;
   viewMode: ViewMode;
   displayCaseCapacities: Record<string, DisplayCaseCapacityConfig>;
   setCategoryFilter: (category: string) => void;
@@ -106,6 +129,11 @@ export interface StoreState {
   setViewMode: (mode: ViewMode) => void;
   setDisplayCaseCapacity: (displayCase: string, capacityLimit: number) => void;
   getDisplayCaseCapacityData: () => DisplayCaseCapacityData[];
+  validateStatusTransition: (meteoriteId: string, newStatus: SaleStatus, fromStatus?: SaleStatus) => { valid: boolean; reason?: string };
+  startAddingStatusRecord: (meteoriteId: string, newStatus: SaleStatus) => boolean;
+  cancelAddingStatusRecord: () => void;
+  addSaleStatusRecord: (meteoriteId: string, newStatus: SaleStatus, remark: string, operator: string) => { success: boolean; reason?: string };
+  getSaleStatusHistory: (meteoriteId: string) => SaleStatusRecord[];
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [

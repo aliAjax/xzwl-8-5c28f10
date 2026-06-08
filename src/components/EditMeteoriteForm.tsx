@@ -423,16 +423,22 @@ const EditMeteoriteForm = () => {
                     <ShoppingBag className="w-4 h-4 text-archive-gold" />
                     <span>出售状态</span>
                   </label>
-                  <select
-                    name="saleStatus"
-                    value={formData.saleStatus}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-archive-bg/50 border border-archive-gold/20 rounded-lg text-archive-cream focus:outline-none focus:ring-2 focus:ring-archive-gold/30 focus:border-archive-gold/50 transition-all"
-                  >
-                    <option value="available">{SALE_STATUS_LABELS.available}</option>
-                    <option value="reserved">{SALE_STATUS_LABELS.reserved}</option>
-                    <option value="sold">{SALE_STATUS_LABELS.sold}</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      name="saleStatus"
+                      value={formData.saleStatus}
+                      disabled
+                      className="w-full px-4 py-3 bg-archive-bg/30 border border-archive-gold/20 rounded-lg text-archive-cream/70 cursor-not-allowed opacity-70"
+                    >
+                      <option value="available">{SALE_STATUS_LABELS.available}</option>
+                      <option value="reserved">{SALE_STATUS_LABELS.reserved}</option>
+                      <option value="sold">{SALE_STATUS_LABELS.sold}</option>
+                    </select>
+                    <div className="mt-2 flex items-start gap-1 text-xs text-archive-gold/70">
+                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span>如需修改出售状态，请在详情页通过"销售流转记录"功能操作</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div>

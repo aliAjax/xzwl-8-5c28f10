@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   X,
   MapPin,
@@ -11,16 +11,33 @@ import {
   ShoppingBag,
   Scissors,
   Hash,
+  Clock,
+  Plus,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { SALE_STATUS_COLORS, SALE_STATUS_LABELS } from '@/types';
+import { SALE_STATUS_COLORS, SALE_STATUS_LABELS, SaleStatus, VALID_STATUS_TRANSITIONS } from '@/types';
+import SaleStatusTimeline from './SaleStatusTimeline';
+import AddStatusRecordForm from './AddStatusRecordForm';
 
 const DetailModal = () => {
-  const { isModalOpen, selectedMeteorite, closeModal } = useStore();
+  const {
+    isModalOpen,
+    selectedMeteorite,
+    closeModal,
+    isAddingStatusRecord,
+    pendingStatusRecord,
+    getSaleStatusHistory,
+    startAddingStatusRecord,
+    cancelAddingStatusRecord,
+  } = useStore();
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') handleClose();
     };
     if (isModalOpen) {
       document.addEventListener('keydown', handleEscape);
@@ -31,6 +48,32 @@ const DetailModal = () => {
       document.body.style.overflow = '';
     };
   }, [isModalOpen, closeModal]);
+
+  const handleClose = () => {
+    if (isAddingStatusRecord) {
+      const confirmed = window.confirm('正在添加状态记录，确定要关闭吗？未保存的更改将丢失。');
+      if (!confirmed) return;
+      cancelAddingStatusRecord();
+    }
+    closeModal();
+  };
+
+  const handleStartAddRecord = (targetStatus: SaleStatus) => {
+    if (!selectedMeteorite) return;
+    const started = startAddingStatusRecord(selectedMeteorite.id, targetStatus);
+    if (!started) {
+      alert('无法开始添加状态记录，请检查状态是否可跳转。');
+    }
+  };
+
+  const handleRecordSuccess = () => {
+    setSuccessMessage('状态流转记录已添加成功！');
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+  };
+
+  const handleRecordCancel = () => {
+  };
 
   if (!isModalOpen || !selectedMeteorite) return null;
 
@@ -55,7 +98,7 @@ const DetailModal = () => {
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={closeModal}
+          onClick={handleClose}
           className="absolute top-4 right-4 z-20 w-10 h-10 bg-archive-bg/80 backdrop-blur-sm rounded-full flex items-center justify-center text-archive-cream/70 hover:text-archive-cream hover:bg-archive-gold/20 transition-all border border-archive-gold/20"
         >
           <X className="w-5 h-5" />
@@ -205,6 +248,63 @@ const DetailModal = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="gold-dashed-divider" />
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display text-lg font-semibold text-archive-cream flex items-center space-x-2">
+                    <Clock className="w-5 h-5 text-archive-gold" />
+                    <span>销售流转记录</span>
+                  </h3>
+                  {!isAddingStatusRecord && (
+                    <div className="flex items-center gap-2">
+                      {VALID_STATUS_TRANSITIONS[selectedMeteorite.saleStatus].length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-archive-cream/50">变更为：</span>
+                          {VALID_STATUS_TRANSITIONS[selectedMeteorite.saleStatus].map((status) => (
+                            <button
+                              key={status}
+                              onClick={() => handleStartAddRecord(status)}
+                              disabled={isAddingStatusRecord}
+                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 ${SALE_STATUS_COLORS[status]}`}
+                            >
+                              <Plus className="w-3 h-3" />
+                              {SALE_STATUS_LABELS[status]}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-archive-cream/40">
+                          <AlertCircle className="w-3 h-3 inline mr-1" />
+                          已售出，不可变更
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {showSuccess && (
+                  <div className="flex items-center gap-2 p-3 mb-4 bg-green-500/10 border border-green-500/30 rounded-lg animate-fade-in">
+                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    <p className="text-sm text-green-400">{successMessage}</p>
+                  </div>
+                )}
+
+                {isAddingStatusRecord && pendingStatusRecord ? (
+                  <AddStatusRecordForm
+                    meteoriteId={selectedMeteorite.id}
+                    currentStatus={pendingStatusRecord.originalStatus}
+                    initialTargetStatus={pendingStatusRecord.newStatus}
+                    onSuccess={handleRecordSuccess}
+                    onCancel={handleRecordCancel}
+                  />
+                ) : (
+                  <SaleStatusTimeline
+                    records={getSaleStatusHistory(selectedMeteorite.id)}
+                  />
+                )}
               </div>
             </div>
           </div>

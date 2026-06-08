@@ -1,4 +1,4 @@
-import { Meteorite, MeteoriteCategory, SaleStatus, METEORITE_CATEGORIES, ImportError, ImportPreviewData } from '@/types';
+import { Meteorite, MeteoriteCategory, SaleStatus, METEORITE_CATEGORIES, ImportError, ImportPreviewData, SaleStatusRecord } from '@/types';
 
 const HEADER_MAPPING: Record<string, string> = {
   '藏品编号': 'id',
@@ -236,6 +236,18 @@ export const parseAndValidateCSV = (
     if (rowErrors.length > 0) {
       errorRows.push(...rowErrors);
     } else {
+      const saleStatus = parseSaleStatus(data.saleStatus);
+      const initialHistory: SaleStatusRecord[] = [
+        {
+          id: `${id}-history-${Date.now()}-${rowIndex}`,
+          meteoriteId: id,
+          fromStatus: null,
+          toStatus: saleStatus,
+          timestamp: new Date().toISOString(),
+          operator: '批量导入',
+          remark: '藏品批量入库，初始状态',
+        },
+      ];
       const meteorite: Meteorite = {
         id: id,
         name: data.name.trim(),
@@ -245,11 +257,12 @@ export const parseAndValidateCSV = (
         sliced: parseSliced(data.sliced),
         certificateNumber: data.certificateNumber.trim(),
         displayCase: data.displayCase.trim(),
-        saleStatus: parseSaleStatus(data.saleStatus),
+        saleStatus: saleStatus,
         description: data.description.trim(),
         imageUrl: data.imageUrl.trim(),
         certificateInfo: data.certificateInfo?.trim() || `证书编号: ${data.certificateNumber.trim()}`,
         discoveredDate: data.discoveredDate.trim(),
+        saleStatusHistory: initialHistory,
       };
       validRows.push(meteorite);
     }

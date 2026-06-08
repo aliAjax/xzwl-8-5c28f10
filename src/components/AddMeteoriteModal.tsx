@@ -17,7 +17,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { Meteorite, METEORITE_CATEGORIES, SALE_STATUS_LABELS, SaleStatus, MeteoriteCategory } from '@/types';
+import { Meteorite, METEORITE_CATEGORIES, SALE_STATUS_LABELS, SaleStatus, MeteoriteCategory, SaleStatusRecord } from '@/types';
 
 interface FormData {
   id: string;
@@ -170,6 +170,18 @@ const AddMeteoriteModal = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    const initialHistory: SaleStatusRecord[] = [
+      {
+        id: `${formData.id.trim()}-history-${Date.now()}`,
+        meteoriteId: formData.id.trim(),
+        fromStatus: null,
+        toStatus: formData.saleStatus,
+        timestamp: new Date().toISOString(),
+        operator: '系统',
+        remark: '藏品入库，初始状态',
+      },
+    ];
+
     const newMeteorite: Meteorite = {
       id: formData.id.trim(),
       name: formData.name.trim(),
@@ -184,6 +196,7 @@ const AddMeteoriteModal = () => {
       imageUrl: formData.imageUrl.trim(),
       certificateInfo: formData.certificateInfo.trim() || `证书编号: ${formData.certificateNumber.trim()}`,
       discoveredDate: formData.discoveredDate,
+      saleStatusHistory: initialHistory,
     };
 
     addMeteorite(newMeteorite);
