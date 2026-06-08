@@ -693,7 +693,7 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!caseSimulation.isSimulating) {
       return { success: false, updatedCount: 0 };
     }
-    const { moveHistory, simulatedMeteorites, originalMeteorites } = caseSimulation;
+    const { moveHistory, simulatedMeteorites } = caseSimulation;
     
     if (moveHistory.length === 0) {
       set({

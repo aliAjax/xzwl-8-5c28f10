@@ -77,7 +77,6 @@ const DisplayCaseView = () => {
   }, [filteredMeteorites, displayCaseCapacities, caseSimulation.isSimulating, caseSimulation.simulatedMeteorites, meteoritesData]);
 
   const sortedCases = useMemo(() => {
-    const dataSource = caseSimulation.isSimulating ? caseSimulation.simulatedMeteorites : meteoritesData;
     const groupedByCase = allDisplayCases.reduce<Record<string, DisplayCaseGroup>>((acc, caseKey) => {
       acc[caseKey] = {
         displayCase: caseKey,
@@ -96,7 +95,7 @@ const DisplayCaseView = () => {
     });
 
     return Object.values(groupedByCase);
-  }, [filteredMeteorites, allDisplayCases, caseSimulation.isSimulating, caseSimulation.simulatedMeteorites, meteoritesData]);
+  }, [filteredMeteorites, allDisplayCases]);
 
   const getCaseStatusDistribution = (meteorites: Meteorite[]) => {
     return meteorites.reduce((acc, m) => {
@@ -185,7 +184,7 @@ const DisplayCaseView = () => {
     return { count, limit, isOver: count > limit, distribution };
   };
 
-  if (sortedCases.length === 0) {
+  if (filteredMeteorites.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="w-20 h-20 bg-archive-card rounded-full flex items-center justify-center mb-6 archive-border">
