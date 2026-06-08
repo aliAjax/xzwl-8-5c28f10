@@ -693,6 +693,8 @@ export const useStore = create<StoreState>((set, get) => ({
       selectedMeteorite: null,
       isModalOpen: false,
       isEditing: false,
+      filterViews: [],
+      activeFilterViewId: null,
       caseSimulation: {
         isSimulating: false,
         originalMeteorites: [],

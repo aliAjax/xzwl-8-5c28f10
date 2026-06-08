@@ -287,7 +287,7 @@ export const getReservedSubStatus = (reservationInfo?: ReservationInfo): Reserve
   const expiresAt = new Date(reservationInfo.expiresAt);
   const diffTime = expiresAt.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return 'expired';
+  if (diffTime < 0) return 'expired';
   if (diffDays <= RESERVATION_EXPIRING_SOON_DAYS) return 'expiringSoon';
   return 'normal';
 };
