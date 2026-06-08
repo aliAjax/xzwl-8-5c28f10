@@ -160,7 +160,10 @@ export const useStore = create<StoreState>((set, get) => ({
 
   getDisplayCaseCapacityData: (): DisplayCaseCapacityData[] => {
     const { meteorites, displayCaseCapacities } = get();
-    const displayCases = [...new Set(meteorites.map(m => m.displayCase))].sort();
+    const allCases = new Set<string>();
+    meteorites.forEach(m => allCases.add(m.displayCase));
+    Object.keys(displayCaseCapacities).forEach(c => allCases.add(c));
+    const displayCases = Array.from(allCases).sort();
 
     return displayCases.map(dc => {
       const items = meteorites.filter(m => m.displayCase === dc);
@@ -182,7 +185,7 @@ export const useStore = create<StoreState>((set, get) => ({
         totalWeight,
         count: items.length,
         capacityLimit,
-        isOverCapacity: totalWeight > capacityLimit,
+        isOverCapacity: items.length > capacityLimit,
         isEmpty: items.length === 0,
         statusDistribution,
       };
