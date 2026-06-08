@@ -70,28 +70,33 @@ const DisplayCaseView = () => {
 
   const allDisplayCases = useMemo(() => {
     const cases = new Set<string>();
-    filteredMeteorites.forEach(m => cases.add(m.displayCase));
+    const dataSource = caseSimulation.isSimulating ? caseSimulation.simulatedMeteorites : meteoritesData;
+    dataSource.forEach(m => cases.add(m.displayCase));
     Object.keys(displayCaseCapacities).forEach(c => cases.add(c));
     return Array.from(cases).sort();
-  }, [filteredMeteorites, displayCaseCapacities]);
+  }, [filteredMeteorites, displayCaseCapacities, caseSimulation.isSimulating, caseSimulation.simulatedMeteorites, meteoritesData]);
 
   const sortedCases = useMemo(() => {
-    const groupedByCase = filteredMeteorites.reduce<Record<string, DisplayCaseGroup>>((acc, meteorite) => {
-      const caseKey = meteorite.displayCase || '未分组';
-      if (!acc[caseKey]) {
-        acc[caseKey] = {
-          displayCase: caseKey,
-          meteorites: [],
-          totalWeight: 0,
-        };
-      }
-      acc[caseKey].meteorites.push(meteorite);
-      acc[caseKey].totalWeight += meteorite.weight;
+    const dataSource = caseSimulation.isSimulating ? caseSimulation.simulatedMeteorites : meteoritesData;
+    const groupedByCase = allDisplayCases.reduce<Record<string, DisplayCaseGroup>>((acc, caseKey) => {
+      acc[caseKey] = {
+        displayCase: caseKey,
+        meteorites: [],
+        totalWeight: 0,
+      };
       return acc;
     }, {});
 
+    filteredMeteorites.forEach(meteorite => {
+      const caseKey = meteorite.displayCase || '未分组';
+      if (groupedByCase[caseKey]) {
+        groupedByCase[caseKey].meteorites.push(meteorite);
+        groupedByCase[caseKey].totalWeight += meteorite.weight;
+      }
+    });
+
     return Object.values(groupedByCase);
-  }, [filteredMeteorites]);
+  }, [filteredMeteorites, allDisplayCases, caseSimulation.isSimulating, caseSimulation.simulatedMeteorites, meteoritesData]);
 
   const getCaseStatusDistribution = (meteorites: Meteorite[]) => {
     return meteorites.reduce((acc, m) => {
