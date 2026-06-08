@@ -73,6 +73,7 @@ const DetailModal = () => {
   };
 
   const handleRecordCancel = () => {
+    cancelAddingStatusRecord();
   };
 
   if (!isModalOpen || !selectedMeteorite) return null;

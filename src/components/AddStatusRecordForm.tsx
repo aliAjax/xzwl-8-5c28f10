@@ -18,7 +18,7 @@ const AddStatusRecordForm = ({
   onSuccess,
   onCancel,
 }: AddStatusRecordFormProps) => {
-  const { addSaleStatusRecord, cancelAddingStatusRecord } = useStore();
+  const { addSaleStatusRecord } = useStore();
   const [newStatus, setNewStatus] = useState<SaleStatus>(initialTargetStatus || currentStatus);
   const [remark, setRemark] = useState('');
   const [operator, setOperator] = useState('');
@@ -54,7 +54,6 @@ const AddStatusRecordForm = ({
   };
 
   const handleCancel = () => {
-    cancelAddingStatusRecord();
     onCancel?.();
   };
 
