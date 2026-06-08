@@ -1,7 +1,30 @@
 import { useState, useMemo } from 'react';
-import { X, Search, Award, FileText, Eye, Archive, Building2 } from 'lucide-react';
+import { X, Search, Award, FileText, Eye, Archive, Building2, Layers } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { Meteorite } from '@/types';
+
+const CERTIFICATION_AUTHORITIES = {
+  IMCA: {
+    code: 'IMCA',
+    name: '国际陨石收藏家协会',
+    fullName: '国际陨石收藏家协会(IMCA)',
+    pattern: /\(IMCA\)/,
+  },
+  MSN: {
+    code: 'MSN',
+    name: '陨石学会',
+    fullName: '陨石学会(MSN)',
+    pattern: /\(MSN\)/,
+  },
+  GMA: {
+    code: 'GMA',
+    name: '全球陨石协会',
+    fullName: '全球陨石协会(GMA)',
+    pattern: /\(GMA\)/,
+  },
+} as const;
+
+type AuthorityCode = keyof typeof CERTIFICATION_AUTHORITIES | 'all' | 'other';
 
 const extractCertAgency = (certInfo: string): string => {
   const match = certInfo.match(/^([^，。]+认证[^，。]*)/);
@@ -10,6 +33,15 @@ const extractCertAgency = (certInfo: string): string => {
   }
   const shortMatch = certInfo.match(/^([^，。]+)/);
   return shortMatch ? shortMatch[1].trim() : certInfo;
+};
+
+const getAuthorityCode = (certInfo: string): AuthorityCode => {
+  for (const [code, config] of Object.entries(CERTIFICATION_AUTHORITIES)) {
+    if (config.pattern.test(certInfo)) {
+      return code as AuthorityCode;
+    }
+  }
+  return 'other';
 };
 
 const extractAgencyName = (certInfo: string): string => {
@@ -99,22 +131,46 @@ const CertificateItem = ({ meteorite, onViewDetail }: CertificateItemProps) => {
 
 const CertificateArchive = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [selectedAuthority, setSelectedAuthority] = useState<AuthorityCode>('all');
   const { meteorites, isCertificateArchiveOpen, closeCertificateArchive, openModal } = useStore();
 
-  const filteredCertificates = useMemo(() => {
-    if (!searchKeyword.trim()) {
-      return meteorites;
+  const authorityGroups = useMemo(() => {
+    const groups: Record<AuthorityCode, number> = {
+      all: meteorites.length,
+      IMCA: 0,
+      MSN: 0,
+      GMA: 0,
+      other: 0,
+    };
+
+    for (const m of meteorites) {
+      const code = getAuthorityCode(m.certificateInfo);
+      groups[code]++;
     }
 
-    const keyword = searchKeyword.trim().toLowerCase();
-    return meteorites.filter((m) => {
-      const certNumberMatch = m.certificateNumber.toLowerCase().includes(keyword);
-      const agencyMatch = extractCertAgency(m.certificateInfo).toLowerCase().includes(keyword);
-      const agencyNameMatch = extractAgencyName(m.certificateInfo).toLowerCase().includes(keyword);
-      const certInfoMatch = m.certificateInfo.toLowerCase().includes(keyword);
-      return certNumberMatch || agencyMatch || agencyNameMatch || certInfoMatch;
-    });
-  }, [meteorites, searchKeyword]);
+    return groups;
+  }, [meteorites]);
+
+  const filteredCertificates = useMemo(() => {
+    let result = meteorites;
+
+    if (selectedAuthority !== 'all') {
+      result = result.filter((m) => getAuthorityCode(m.certificateInfo) === selectedAuthority);
+    }
+
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase();
+      result = result.filter((m) => {
+        const certNumberMatch = m.certificateNumber.toLowerCase().includes(keyword);
+        const agencyMatch = extractCertAgency(m.certificateInfo).toLowerCase().includes(keyword);
+        const agencyNameMatch = extractAgencyName(m.certificateInfo).toLowerCase().includes(keyword);
+        const certInfoMatch = m.certificateInfo.toLowerCase().includes(keyword);
+        return certNumberMatch || agencyMatch || agencyNameMatch || certInfoMatch;
+      });
+    }
+
+    return result;
+  }, [meteorites, searchKeyword, selectedAuthority]);
 
   const handleViewDetail = (meteorite: Meteorite) => {
     closeCertificateArchive();
@@ -125,7 +181,16 @@ const CertificateArchive = () => {
 
   const handleClear = () => {
     setSearchKeyword('');
+    setSelectedAuthority('all');
   };
+
+  const authorityFilterButtons = [
+    { code: 'all' as AuthorityCode, label: '全部', icon: Layers },
+    { code: 'IMCA' as AuthorityCode, label: 'IMCA', icon: Award },
+    { code: 'MSN' as AuthorityCode, label: 'MSN', icon: Award },
+    { code: 'GMA' as AuthorityCode, label: 'GMA', icon: Award },
+    { code: 'other' as AuthorityCode, label: '其他', icon: Building2 },
+  ];
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -154,7 +219,13 @@ const CertificateArchive = () => {
             </div>
             <div>
               <h2 className="font-display text-xl font-bold text-archive-cream">证书档案库</h2>
-              <p className="text-archive-cream/50 text-sm">共 {filteredCertificates.length} 份证书档案</p>
+              <p className="text-archive-cream/50 text-sm">
+                {selectedAuthority === 'all'
+                  ? `共 ${filteredCertificates.length} 份证书档案`
+                  : selectedAuthority === 'other'
+                  ? `其他机构 · 共 ${filteredCertificates.length} 份证书档案`
+                  : `${CERTIFICATION_AUTHORITIES[selectedAuthority as keyof typeof CERTIFICATION_AUTHORITIES]?.name || selectedAuthority} · 共 ${filteredCertificates.length} 份证书档案`}
+              </p>
             </div>
           </div>
           <button
@@ -196,6 +267,36 @@ const CertificateArchive = () => {
           </div>
         </div>
 
+        <div className="px-6 py-3 border-b border-archive-gold/10 bg-archive-bg/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Layers className="w-4 h-4 text-archive-gold/60" />
+            <span className="text-sm text-archive-cream/60">按认证机构筛选</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {authorityFilterButtons.map(({ code, label, icon: Icon }) => (
+              <button
+                key={code}
+                onClick={() => setSelectedAuthority(code)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  selectedAuthority === code
+                    ? 'bg-archive-gold text-archive-bg shadow-lg shadow-archive-gold/30'
+                    : 'bg-archive-bg/50 text-archive-cream/70 hover:bg-archive-gold/10 hover:text-archive-gold border border-archive-gold/20'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{label}</span>
+                <span className={`ml-0.5 px-1.5 py-0.5 rounded text-xs font-semibold ${
+                  selectedAuthority === code
+                    ? 'bg-archive-bg/20 text-archive-bg'
+                    : 'bg-archive-gold/10 text-archive-gold'
+                }`}>
+                  {authorityGroups[code]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-6">
           {filteredCertificates.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -216,14 +317,14 @@ const CertificateArchive = () => {
                 未找到匹配的证书
               </h3>
               <p className="text-archive-cream/30 text-sm max-w-sm">
-                请尝试其他关键词，或清空搜索条件查看全部证书档案
+                请尝试其他关键词或筛选条件，或清空所有条件查看全部证书档案
               </p>
-              {searchKeyword && (
+              {(searchKeyword || selectedAuthority !== 'all') && (
                 <button
                   onClick={handleClear}
                   className="mt-4 px-4 py-2 bg-archive-gold/10 text-archive-gold text-sm rounded-md hover:bg-archive-gold/20 transition-colors"
                 >
-                  清空搜索
+                  清空筛选
                 </button>
               )}
             </div>
