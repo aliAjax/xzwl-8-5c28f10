@@ -18,9 +18,11 @@ import {
   Unlock,
   UserPlus,
   AlertTriangle,
+  User,
+  MessageSquare,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { SALE_STATUS_COLORS, SALE_STATUS_LABELS, SaleStatus, VALID_STATUS_TRANSITIONS, getReservedSubStatus, RESERVED_SUBSTATUS_LABELS, RESERVED_SUBSTATUS_COLORS, RESERVED_SUBSTATUS_TEXT_COLORS, formatDateTime, RESERVATION_EXPIRING_SOON_DAYS } from '@/types';
+import { SALE_STATUS_COLORS, SALE_STATUS_LABELS, SaleStatus, VALID_STATUS_TRANSITIONS, getReservedSubStatus, RESERVED_SUBSTATUS_LABELS, RESERVED_SUBSTATUS_TEXT_COLORS, formatDateTime } from '@/types';
 import SaleStatusTimeline from './SaleStatusTimeline';
 import AddStatusRecordForm from './AddStatusRecordForm';
 
