@@ -104,6 +104,7 @@ export interface ImportError {
 }
 
 export interface ImportRowData {
+  rowKey: string;
   rowNum: number;
   id: string;
   name: string;
@@ -132,7 +133,7 @@ export interface ImportPreviewData {
   totalRows: number;
   validCount: number;
   errorCount: number;
-  selectedRowIds: Set<string>;
+  selectedRowKeys: Set<string>;
 }
 
 export interface StoreState {

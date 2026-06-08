@@ -187,14 +187,14 @@ export const parseAndValidateCSV = (
       totalRows: 0,
       validCount: 0,
       errorCount: 0,
-      selectedRowIds: new Set(),
+      selectedRowKeys: new Set(),
     };
   }
   
   const headers = rows[0];
   const headerMapping = mapHeaders(headers);
   const dataRows = rows.slice(1);
-  
+
   const allRows: ImportRowData[] = [];
   const validRows: Meteorite[] = [];
   const errorRows: ImportError[] = [];
@@ -235,8 +235,9 @@ export const parseAndValidateCSV = (
         seenIds.add(id);
       }
     }
-    
+
     const rowData: ImportRowData = {
+      rowKey: `row-${rowNum}`,
       rowNum,
       id: data.id?.trim() || '',
       name: data.name?.trim() || '',
@@ -255,7 +256,7 @@ export const parseAndValidateCSV = (
       isValid: rowErrors.length === 0,
     };
     allRows.push(rowData);
-    
+
     if (rowErrors.length > 0) {
       errorRows.push(...rowErrors);
     } else {
@@ -290,9 +291,8 @@ export const parseAndValidateCSV = (
       validRows.push(meteorite);
     }
   });
-  
-  const selectedRowIds = new Set(validRows.map(m => m.id));
-  
+  const selectedRowKeys = new Set(allRows.filter(row => row.isValid).map(row => row.rowKey));
+
   return {
     headers,
     headerMapping,
@@ -303,7 +303,7 @@ export const parseAndValidateCSV = (
     totalRows: dataRows.length,
     validCount: validRows.length,
     errorCount: errorRows.length > 0 ? new Set(errorRows.map(e => e.row)).size : 0,
-    selectedRowIds,
+    selectedRowKeys,
   };
 };
 
@@ -371,7 +371,7 @@ export const generateInitialHistory = (id: string, saleStatus: SaleStatus, index
 export const convertRowDataToMeteorite = (rowData: ImportRowData, index: number): Meteorite => {
   const saleStatus = parseSaleStatus(rowData.saleStatus);
   const initialHistory = generateInitialHistory(rowData.id, saleStatus, index);
-  
+
   return {
     id: rowData.id,
     name: rowData.name,
@@ -393,7 +393,7 @@ export const convertRowDataToMeteorite = (rowData: ImportRowData, index: number)
 export const revalidatePreviewData = (
   allRows: ImportRowData[],
   existingIds: Set<string>,
-  previousSelectedIds: Set<string>
+  previousSelectedKeys: Set<string>
 ): Omit<ImportPreviewData, 'headers' | 'headerMapping' | 'totalRows'> => {
   const errorRows: ImportError[] = [];
   const duplicateIds: string[] = [];
@@ -436,8 +436,8 @@ export const revalidatePreviewData = (
         rowErrors.push({
           row: rowNum,
           field: '藏品编号',
-          message: isDuplicateInBatch 
-            ? `藏品编号"${id}"在导入数据中重复` 
+          message: isDuplicateInBatch
+            ? `藏品编号"${id}"在导入数据中重复`
             : `藏品编号"${id}"已存在`,
           value: id,
         });
@@ -465,15 +465,16 @@ export const revalidatePreviewData = (
     }
   });
 
-  const newSelectedIds = new Set<string>();
-  previousSelectedIds.forEach(id => {
-    if (newValidRows.some(m => m.id === id)) {
-      newSelectedIds.add(id);
+  const validRowKeys = new Set(newAllRows.filter(row => row.isValid).map(row => row.rowKey));
+  const newSelectedKeys = new Set<string>();
+  previousSelectedKeys.forEach(rowKey => {
+    if (validRowKeys.has(rowKey)) {
+      newSelectedKeys.add(rowKey);
     }
   });
-  newValidRows.forEach(m => {
-    if (previousSelectedIds.has(m.id) || !previousSelectedIds.size) {
-      newSelectedIds.add(m.id);
+  newAllRows.forEach(row => {
+    if (row.isValid && (previousSelectedKeys.has(row.rowKey) || !previousSelectedKeys.size)) {
+      newSelectedKeys.add(row.rowKey);
     }
   });
 
@@ -484,6 +485,6 @@ export const revalidatePreviewData = (
     duplicateIds,
     validCount: newValidRows.length,
     errorCount: errorRows.length > 0 ? new Set(errorRows.map(e => e.row)).size : 0,
-    selectedRowIds: newSelectedIds,
+    selectedRowKeys: newSelectedKeys,
   };
 };

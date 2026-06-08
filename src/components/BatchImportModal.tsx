@@ -243,30 +243,30 @@ const BatchImportModal = () => {
     setPreviewData(null);
   };
 
-  const handleToggleRowSelection = (rowId: string) => {
+  const handleToggleRowSelection = (rowKey: string) => {
     if (!previewData) return;
-    
-    const row = previewData.allRows.find(r => r.id === rowId);
+
+    const row = previewData.allRows.find(r => r.rowKey === rowKey);
     if (!row || !row.isValid) return;
-    
-    const newSelected = new Set(previewData.selectedRowIds);
-    if (newSelected.has(rowId)) {
-      newSelected.delete(rowId);
+
+    const newSelected = new Set(previewData.selectedRowKeys);
+    if (newSelected.has(rowKey)) {
+      newSelected.delete(rowKey);
     } else {
-      newSelected.add(rowId);
+      newSelected.add(rowKey);
     }
     setPreviewData({
       ...previewData,
-      selectedRowIds: newSelected,
+      selectedRowKeys: newSelected,
     });
   };
 
   const handleSelectAll = () => {
     if (!previewData) return;
-    const allValidIds = new Set(previewData.allRows.filter(r => r.isValid).map(r => r.id));
+    const allValidKeys = new Set(previewData.allRows.filter(r => r.isValid).map(r => r.rowKey));
     setPreviewData({
       ...previewData,
-      selectedRowIds: allValidIds,
+      selectedRowKeys: allValidKeys,
     });
   };
 
@@ -274,7 +274,7 @@ const BatchImportModal = () => {
     if (!previewData) return;
     setPreviewData({
       ...previewData,
-      selectedRowIds: new Set(),
+      selectedRowKeys: new Set(),
     });
   };
 
@@ -282,12 +282,12 @@ const BatchImportModal = () => {
     if (!previewData) return false;
     const validRows = previewData.allRows.filter(r => r.isValid);
     if (validRows.length === 0) return false;
-    return validRows.every(r => previewData.selectedRowIds.has(r.id));
+    return validRows.every(r => previewData.selectedRowKeys.has(r.rowKey));
   }, [previewData]);
 
   const selectedCount = useMemo(() => {
     if (!previewData) return 0;
-    return previewData.selectedRowIds.size;
+    return previewData.selectedRowKeys.size;
   }, [previewData]);
 
   const hasErrors = useMemo(() => {
@@ -295,12 +295,12 @@ const BatchImportModal = () => {
     return previewData.allRows.some(r => !r.isValid);
   }, [previewData]);
 
-  const handleFieldEdit = (rowId: string, field: string, value: string) => {
+  const handleFieldEdit = (rowKey: string, field: string, value: string) => {
     if (!previewData) return;
-    
+
     const updatedAllRows = previewData.allRows.map(row => {
-      if (row.id !== rowId) return row;
-      
+      if (row.rowKey !== rowKey) return row;
+
       const updated = { ...row };
       switch (field) {
         case 'category':
@@ -340,8 +340,8 @@ const BatchImportModal = () => {
       return updated;
     });
 
-    const revalidated = revalidatePreviewData(updatedAllRows, existingIds, previewData.selectedRowIds);
-    
+    const revalidated = revalidatePreviewData(updatedAllRows, existingIds, previewData.selectedRowKeys);
+
     setPreviewData({
       ...previewData,
       ...revalidated,
@@ -349,16 +349,16 @@ const BatchImportModal = () => {
   };
 
   const handleImport = async () => {
-    if (!previewData || previewData.selectedRowIds.size === 0) return;
-    
+    if (!previewData || previewData.selectedRowKeys.size === 0) return;
+
     setStep('importing');
-    
+
     await new Promise(resolve => setTimeout(resolve, 800));
-    
+
     const selectedRows = previewData.allRows
-      .filter(row => row.isValid && previewData.selectedRowIds.has(row.id))
+      .filter(row => row.isValid && previewData.selectedRowKeys.has(row.rowKey))
       .map((row, index) => convertRowDataToMeteorite(row, index));
-    
+
     const count = batchAddMeteorites(selectedRows);
     setImportCount(count);
     setStep('success');
@@ -661,12 +661,12 @@ const BatchImportModal = () => {
                 <tbody className="divide-y divide-archive-gold/10">
                   {previewData.allRows.map((row, index) => {
                     const hasError = !row.isValid;
-                    const isSelected = previewData.selectedRowIds.has(row.id);
+                    const isSelected = previewData.selectedRowKeys.has(row.rowKey);
                     const saleStatusValue = parseSaleStatus(row.saleStatus);
-                    
+
                     return (
-                      <React.Fragment key={`${row.rowNum}-${row.id || index}`}>
-                        <tr 
+                      <React.Fragment key={row.rowKey}>
+                        <tr
                           className={`hover:bg-archive-gold/5 transition-colors ${
                             hasError ? 'bg-red-500/5' : !isSelected ? 'opacity-50' : ''
                           }`}
@@ -675,7 +675,7 @@ const BatchImportModal = () => {
                             <input
                               type="checkbox"
                               checked={isSelected}
-                              onChange={() => handleToggleRowSelection(row.id)}
+                              onChange={() => handleToggleRowSelection(row.rowKey)}
                               disabled={hasError}
                               className={`w-4 h-4 accent-archive-gold rounded ${
                                 hasError ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
@@ -703,7 +703,7 @@ const BatchImportModal = () => {
                             <input
                               type="text"
                               value={row.id}
-                              onChange={(e) => handleFieldEdit(row.id, 'id', e.target.value)}
+                              onChange={(e) => handleFieldEdit(row.rowKey, 'id', e.target.value)}
                               className={`w-full px-2 py-1 rounded text-sm font-mono focus:outline-none focus:ring-2 ${
                                 row.errors.some(e => e.field === '藏品编号')
                                   ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -716,7 +716,7 @@ const BatchImportModal = () => {
                             <input
                               type="text"
                               value={row.name}
-                              onChange={(e) => handleFieldEdit(row.id, 'name', e.target.value)}
+                              onChange={(e) => handleFieldEdit(row.rowKey, 'name', e.target.value)}
                               className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
                                 row.errors.some(e => e.field === '名称')
                                   ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -728,7 +728,7 @@ const BatchImportModal = () => {
                           <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                             <select
                               value={row.category || ''}
-                              onChange={(e) => handleFieldEdit(row.id, 'category', e.target.value)}
+                              onChange={(e) => handleFieldEdit(row.rowKey, 'category', e.target.value)}
                               className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 cursor-pointer ${
                                 row.errors.some(e => e.field === '分类')
                                   ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -745,7 +745,7 @@ const BatchImportModal = () => {
                             <input
                               type="number"
                               value={row.weight}
-                              onChange={(e) => handleFieldEdit(row.id, 'weight', e.target.value)}
+                              onChange={(e) => handleFieldEdit(row.rowKey, 'weight', e.target.value)}
                               className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
                                 row.errors.some(e => e.field === '重量')
                                   ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -760,7 +760,7 @@ const BatchImportModal = () => {
                             <input
                               type="text"
                               value={row.displayCase}
-                              onChange={(e) => handleFieldEdit(row.id, 'displayCase', e.target.value)}
+                              onChange={(e) => handleFieldEdit(row.rowKey, 'displayCase', e.target.value)}
                               className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
                                 row.errors.some(e => e.field === '展示柜')
                                   ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -772,7 +772,7 @@ const BatchImportModal = () => {
                           <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                             <select
                               value={saleStatusValue}
-                              onChange={(e) => handleFieldEdit(row.id, 'saleStatus', e.target.value)}
+                              onChange={(e) => handleFieldEdit(row.rowKey, 'saleStatus', e.target.value)}
                               className={`px-2 py-1 rounded text-xs font-medium text-white border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-archive-gold/50 ${SALE_STATUS_COLORS[saleStatusValue]}`}
                             >
                               <option value="available">在售</option>
@@ -806,7 +806,7 @@ const BatchImportModal = () => {
                                   <input
                                     type="text"
                                     value={row.location}
-                                    onChange={(e) => handleFieldEdit(row.id, 'location', e.target.value)}
+                                    onChange={(e) => handleFieldEdit(row.rowKey, 'location', e.target.value)}
                                     className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
                                       row.errors.some(e => e.field === '发现地')
                                         ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -820,7 +820,7 @@ const BatchImportModal = () => {
                                   <input
                                     type="text"
                                     value={row.discoveredDate}
-                                    onChange={(e) => handleFieldEdit(row.id, 'discoveredDate', e.target.value)}
+                                    onChange={(e) => handleFieldEdit(row.rowKey, 'discoveredDate', e.target.value)}
                                     className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
                                       row.errors.some(e => e.field === '发现日期')
                                         ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -834,7 +834,7 @@ const BatchImportModal = () => {
                                   <input
                                     type="text"
                                     value={row.certificateNumber}
-                                    onChange={(e) => handleFieldEdit(row.id, 'certificateNumber', e.target.value)}
+                                    onChange={(e) => handleFieldEdit(row.rowKey, 'certificateNumber', e.target.value)}
                                     className={`w-full px-2 py-1 rounded text-sm font-mono focus:outline-none focus:ring-2 ${
                                       row.errors.some(e => e.field === '证书编号')
                                         ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -852,7 +852,7 @@ const BatchImportModal = () => {
                                   <input
                                     type="text"
                                     value={row.description}
-                                    onChange={(e) => handleFieldEdit(row.id, 'description', e.target.value)}
+                                    onChange={(e) => handleFieldEdit(row.rowKey, 'description', e.target.value)}
                                     className={`w-full px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 ${
                                       row.errors.some(e => e.field === '描述')
                                         ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
@@ -866,7 +866,7 @@ const BatchImportModal = () => {
                                   <input
                                     type="text"
                                     value={row.imageUrl}
-                                    onChange={(e) => handleFieldEdit(row.id, 'imageUrl', e.target.value)}
+                                    onChange={(e) => handleFieldEdit(row.rowKey, 'imageUrl', e.target.value)}
                                     className={`w-full px-2 py-1 rounded text-sm font-mono focus:outline-none focus:ring-2 ${
                                       row.errors.some(e => e.field === '图片地址')
                                         ? 'bg-red-500/10 border border-red-500/50 text-red-400 focus:ring-red-500/50'
