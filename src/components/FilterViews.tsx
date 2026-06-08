@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { Bookmark, Plus, X, Trash2, Check } from 'lucide-react';
 import { useStore, maxWeight } from '@/store/useStore';
-import { SALE_STATUS_LABELS, SaleStatus, FilterState } from '@/types';
+import { SALE_STATUS_LABELS, SaleStatus, FilterState, SORT_FIELD_LABELS, SortState } from '@/types';
+
+const DEFAULT_SORT: SortState = {
+  field: 'discoveredDate',
+  direction: 'desc',
+};
 
 const FilterViews = () => {
   const {
@@ -12,14 +17,16 @@ const FilterViews = () => {
     saveFilterView,
     clearActiveFilterView,
     filters,
+    sort,
     resetFilters,
+    resetSort,
   } = useStore();
 
   const [isAdding, setIsAdding] = useState(false);
   const [newViewName, setNewViewName] = useState('');
   const [viewToDelete, setViewToDelete] = useState<string | null>(null);
 
-  const getFilterDescription = (filters: FilterState) => {
+  const getFilterDescription = (filters: FilterState, sort?: SortState) => {
     const parts = [];
     if (filters.category !== 'all') {
       parts.push(filters.category);
@@ -29,6 +36,10 @@ const FilterViews = () => {
     }
     if (filters.saleStatus !== 'all') {
       parts.push(SALE_STATUS_LABELS[filters.saleStatus as SaleStatus | 'all']);
+    }
+    if (sort && (sort.field !== DEFAULT_SORT.field || sort.direction !== DEFAULT_SORT.direction)) {
+      const directionLabel = sort.direction === 'asc' ? '升序' : '降序';
+      parts.push(`${SORT_FIELD_LABELS[sort.field]}${directionLabel}`);
     }
     return parts.length > 0 ? parts.join(' · ') : '全部';
   };
@@ -54,13 +65,16 @@ const FilterViews = () => {
 
   const handleReset = () => {
     resetFilters();
+    resetSort();
     clearActiveFilterView();
   };
 
   const hasActiveFilters = filters.category !== 'all' || 
     filters.minWeight > 0 || 
     filters.maxWeight < maxWeight + 100 || 
-    filters.saleStatus !== 'all';
+    filters.saleStatus !== 'all' ||
+    sort.field !== DEFAULT_SORT.field || 
+    sort.direction !== DEFAULT_SORT.direction;
 
   return (
     <div className="bg-archive-card/30 backdrop-blur-sm border-b border-archive-gold/10">
@@ -177,7 +191,10 @@ const FilterViews = () => {
 
           {activeFilterViewId && (
             <div className="ml-auto shrink-0 text-xs text-archive-cream/50">
-              {getFilterDescription(filterViews.find(v => v.id === activeFilterViewId)?.filters || filters)}
+              {getFilterDescription(
+                filterViews.find(v => v.id === activeFilterViewId)?.filters || filters,
+                filterViews.find(v => v.id === activeFilterViewId)?.sort || sort
+              )}
             </div>
           )}
         </div>

@@ -1,14 +1,23 @@
 import { create } from 'zustand';
-import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig, VALID_STATUS_TRANSITIONS, SaleStatusRecord, FilterView } from '@/types';
+import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig, VALID_STATUS_TRANSITIONS, SaleStatusRecord, FilterView, SortState, SALE_STATUS_SORT_ORDER } from '@/types';
 import { mockMeteorites } from '@/data/mockData';
 
 const FILTER_VIEWS_STORAGE_KEY = 'meteorite-filter-views';
+
+const DEFAULT_SORT: SortState = {
+  field: 'discoveredDate',
+  direction: 'desc',
+};
 
 const loadFilterViews = (): FilterView[] => {
   try {
     const stored = localStorage.getItem(FILTER_VIEWS_STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const views = JSON.parse(stored);
+      return views.map((view: FilterView) => ({
+        ...view,
+        sort: view.sort || { ...DEFAULT_SORT },
+      }));
     }
   } catch (e) {
     console.error('Failed to load filter views from localStorage:', e);
@@ -48,6 +57,7 @@ export const useStore = create<StoreState>((set, get) => ({
     maxWeight: maxWeight + 100,
     saleStatus: 'all',
   },
+  sort: { ...DEFAULT_SORT },
   selectedMeteorite: null,
   isModalOpen: false,
   isAddModalOpen: false,
@@ -78,6 +88,20 @@ export const useStore = create<StoreState>((set, get) => ({
     set((state) => ({
       filters: { ...state.filters, saleStatus: status },
       activeFilterViewId: null,
+    })),
+
+  setSort: (field, direction) =>
+    set(() => ({
+      sort: { field, direction },
+      activeFilterViewId: null,
+    })),
+
+  toggleSortDirection: () =>
+    set((state) => ({
+      sort: {
+        ...state.sort,
+        direction: state.sort.direction === 'asc' ? 'desc' : 'asc',
+      },
     })),
 
   selectMeteorite: (meteorite: Meteorite | null) =>
@@ -187,14 +211,42 @@ export const useStore = create<StoreState>((set, get) => ({
       activeFilterViewId: null,
     }),
 
+  resetSort: () =>
+    set({
+      sort: { ...DEFAULT_SORT },
+    }),
+
+  getSortedMeteorites: (meteorites: Meteorite[]) => {
+    const { sort } = get();
+    return [...meteorites].sort((a, b) => {
+      let comparison = 0;
+      switch (sort.field) {
+        case 'discoveredDate':
+          comparison = new Date(a.discoveredDate).getTime() - new Date(b.discoveredDate).getTime();
+          break;
+        case 'weight':
+          comparison = a.weight - b.weight;
+          break;
+        case 'id':
+          comparison = a.id.localeCompare(b.id, 'zh-CN', { numeric: true });
+          break;
+        case 'saleStatus':
+          comparison = SALE_STATUS_SORT_ORDER[a.saleStatus] - SALE_STATUS_SORT_ORDER[b.saleStatus];
+          break;
+      }
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
+  },
+
   getFilteredMeteorites: () => {
-    const { meteorites, filters } = get();
-    return meteorites.filter((m) => {
+    const { meteorites, filters, getSortedMeteorites } = get();
+    const filtered = meteorites.filter((m) => {
       const categoryMatch = filters.category === 'all' || m.category === filters.category;
       const weightMatch = m.weight >= filters.minWeight && m.weight <= filters.maxWeight;
       const statusMatch = filters.saleStatus === 'all' || m.saleStatus === filters.saleStatus;
       return categoryMatch && weightMatch && statusMatch;
     });
+    return getSortedMeteorites(filtered);
   },
 
   checkDuplicateId: (id: string, excludeId?: string) => {
@@ -371,11 +423,12 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   saveFilterView: (name: string) => {
-    const { filters, filterViews } = get();
+    const { filters, filterViews, sort } = get();
     const newView: FilterView = {
       id: `view-${Date.now()}`,
       name: name.trim(),
       filters: { ...filters },
+      sort: { ...sort },
       createdAt: Date.now(),
     };
     const newViews = [...filterViews, newView];
@@ -397,6 +450,7 @@ export const useStore = create<StoreState>((set, get) => ({
     if (view) {
       set({
         filters: { ...view.filters },
+        sort: { ...view.sort },
         activeFilterViewId: id,
       });
     }

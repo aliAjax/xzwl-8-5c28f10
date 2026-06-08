@@ -18,6 +18,27 @@ export const VALID_STATUS_TRANSITIONS: Record<SaleStatus, SaleStatus[]> = {
 
 export type ViewMode = 'list' | 'displayCase';
 
+export type SortField = 'discoveredDate' | 'weight' | 'id' | 'saleStatus';
+export type SortDirection = 'asc' | 'desc';
+
+export interface SortState {
+  field: SortField;
+  direction: SortDirection;
+}
+
+export const SORT_FIELD_LABELS: Record<SortField, string> = {
+  discoveredDate: '发现日期',
+  weight: '重量',
+  id: '藏品编号',
+  saleStatus: '销售状态',
+};
+
+export const SALE_STATUS_SORT_ORDER: Record<SaleStatus, number> = {
+  available: 0,
+  reserved: 1,
+  sold: 2,
+};
+
 export type MeteoriteCategory = 
   | '普通球粒陨石'
   | '碳质球粒陨石'
@@ -56,6 +77,7 @@ export interface FilterView {
   id: string;
   name: string;
   filters: FilterState;
+  sort: SortState;
   createdAt: number;
 }
 
@@ -95,6 +117,7 @@ export interface ImportPreviewData {
 export interface StoreState {
   meteorites: Meteorite[];
   filters: FilterState;
+  sort: SortState;
   selectedMeteorite: Meteorite | null;
   isModalOpen: boolean;
   isAddModalOpen: boolean;
@@ -115,6 +138,8 @@ export interface StoreState {
   setCategoryFilter: (category: string) => void;
   setWeightFilter: (min: number, max: number) => void;
   setSaleStatusFilter: (status: SaleStatus | 'all') => void;
+  setSort: (field: SortField, direction: SortDirection) => void;
+  toggleSortDirection: () => void;
   selectMeteorite: (meteorite: Meteorite | null) => void;
   openModal: (meteorite: Meteorite) => void;
   closeModal: () => void;
@@ -132,7 +157,9 @@ export interface StoreState {
   startEditing: () => void;
   cancelEditing: () => void;
   resetFilters: () => void;
+  resetSort: () => void;
   getFilteredMeteorites: () => Meteorite[];
+  getSortedMeteorites: (meteorites: Meteorite[]) => Meteorite[];
   checkDuplicateId: (id: string, excludeId?: string) => boolean;
   searchByCertificateNumber: (certNumber: string) => Meteorite | undefined;
   setViewMode: (mode: ViewMode) => void;

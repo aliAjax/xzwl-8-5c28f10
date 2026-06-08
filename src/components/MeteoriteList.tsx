@@ -6,11 +6,12 @@ import MeteoriteCard from './MeteoriteCard';
 const MeteoriteList = () => {
   const meteoritesData = useStore((state) => state.meteorites);
   const filters = useStore((state) => state.filters);
+  const sort = useStore((state) => state.sort);
   const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
 
   const meteorites = useMemo(() => {
     return getFilteredMeteorites();
-  }, [meteoritesData, filters, getFilteredMeteorites]);
+  }, [meteoritesData, filters, sort, getFilteredMeteorites]);
 
   if (meteorites.length === 0) {
     return (

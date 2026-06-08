@@ -13,13 +13,14 @@ interface DisplayCaseGroup {
 const DisplayCaseView = () => {
   const meteoritesData = useStore((state) => state.meteorites);
   const filters = useStore((state) => state.filters);
+  const sort = useStore((state) => state.sort);
   const getFilteredMeteorites = useStore((state) => state.getFilteredMeteorites);
   const openCapacityPlanner = useStore((state) => state.openCapacityPlanner);
   const getDisplayCaseCapacityData = useStore((state) => state.getDisplayCaseCapacityData);
 
   const filteredMeteorites = useMemo(() => {
     return getFilteredMeteorites();
-  }, [meteoritesData, filters, getFilteredMeteorites]);
+  }, [meteoritesData, filters, sort, getFilteredMeteorites]);
 
   const capacityData = useMemo(() => getDisplayCaseCapacityData(), [meteoritesData, getDisplayCaseCapacityData]);
   const overCapacityCount = capacityData.filter(c => c.isOverCapacity).length;
