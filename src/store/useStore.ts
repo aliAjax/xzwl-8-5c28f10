@@ -1,6 +1,28 @@
 import { create } from 'zustand';
-import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig, VALID_STATUS_TRANSITIONS, SaleStatusRecord } from '@/types';
+import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, DisplayCaseCapacityData, DisplayCaseCapacityConfig, VALID_STATUS_TRANSITIONS, SaleStatusRecord, FilterView } from '@/types';
 import { mockMeteorites } from '@/data/mockData';
+
+const FILTER_VIEWS_STORAGE_KEY = 'meteorite-filter-views';
+
+const loadFilterViews = (): FilterView[] => {
+  try {
+    const stored = localStorage.getItem(FILTER_VIEWS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load filter views from localStorage:', e);
+  }
+  return [];
+};
+
+const persistFilterViews = (views: FilterView[]) => {
+  try {
+    localStorage.setItem(FILTER_VIEWS_STORAGE_KEY, JSON.stringify(views));
+  } catch (e) {
+    console.error('Failed to persist filter views to localStorage:', e);
+  }
+};
 
 const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
   const weights = meteorites.map(m => m.weight);
@@ -37,20 +59,25 @@ export const useStore = create<StoreState>((set, get) => ({
   pendingStatusRecord: null,
   viewMode: 'list' as ViewMode,
   displayCaseCapacities: getInitialDisplayCaseCapacities(),
+  filterViews: loadFilterViews(),
+  activeFilterViewId: null,
 
   setCategoryFilter: (category: string) =>
     set((state) => ({
       filters: { ...state.filters, category },
+      activeFilterViewId: null,
     })),
 
   setWeightFilter: (min: number, max: number) =>
     set((state) => ({
       filters: { ...state.filters, minWeight: min, maxWeight: max },
+      activeFilterViewId: null,
     })),
 
   setSaleStatusFilter: (status: SaleStatus | 'all') =>
     set((state) => ({
       filters: { ...state.filters, saleStatus: status },
+      activeFilterViewId: null,
     })),
 
   selectMeteorite: (meteorite: Meteorite | null) =>
@@ -157,6 +184,7 @@ export const useStore = create<StoreState>((set, get) => ({
         maxWeight: maxWeight + 100,
         saleStatus: 'all',
       },
+      activeFilterViewId: null,
     }),
 
   getFilteredMeteorites: () => {
@@ -340,6 +368,42 @@ export const useStore = create<StoreState>((set, get) => ({
     return [...meteorite.saleStatusHistory].sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
+  },
+
+  saveFilterView: (name: string) => {
+    const { filters, filterViews } = get();
+    const newView: FilterView = {
+      id: `view-${Date.now()}`,
+      name: name.trim(),
+      filters: { ...filters },
+      createdAt: Date.now(),
+    };
+    const newViews = [...filterViews, newView];
+    set({ filterViews: newViews, activeFilterViewId: newView.id });
+    persistFilterViews(newViews);
+  },
+
+  deleteFilterView: (id: string) => {
+    const { filterViews, activeFilterViewId } = get();
+    const newViews = filterViews.filter(v => v.id !== id);
+    const newActiveId = activeFilterViewId === id ? null : activeFilterViewId;
+    set({ filterViews: newViews, activeFilterViewId: newActiveId });
+    persistFilterViews(newViews);
+  },
+
+  applyFilterView: (id: string) => {
+    const { filterViews } = get();
+    const view = filterViews.find(v => v.id === id);
+    if (view) {
+      set({
+        filters: { ...view.filters },
+        activeFilterViewId: id,
+      });
+    }
+  },
+
+  clearActiveFilterView: () => {
+    set({ activeFilterViewId: null });
   },
 }));
 

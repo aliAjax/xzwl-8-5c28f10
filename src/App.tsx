@@ -1,4 +1,5 @@
 import Header from '@/components/Header';
+import FilterViews from '@/components/FilterViews';
 import FilterPanel from '@/components/FilterPanel';
 import CertificateSearch from '@/components/CertificateSearch';
 import StatisticsDashboard from '@/components/StatisticsDashboard';
@@ -18,6 +19,7 @@ function App() {
   return (
     <div className="min-h-screen bg-archive-bg noise-overlay">
       <Header />
+      <FilterViews />
       <FilterPanel />
       <CertificateSearch />
       <StatisticsDashboard />

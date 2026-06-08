@@ -52,6 +52,13 @@ export interface FilterState {
   saleStatus: SaleStatus | 'all';
 }
 
+export interface FilterView {
+  id: string;
+  name: string;
+  filters: FilterState;
+  createdAt: number;
+}
+
 export interface DisplayCaseCapacityConfig {
   capacityLimit: number;
 }
@@ -103,6 +110,8 @@ export interface StoreState {
   } | null;
   viewMode: ViewMode;
   displayCaseCapacities: Record<string, DisplayCaseCapacityConfig>;
+  filterViews: FilterView[];
+  activeFilterViewId: string | null;
   setCategoryFilter: (category: string) => void;
   setWeightFilter: (min: number, max: number) => void;
   setSaleStatusFilter: (status: SaleStatus | 'all') => void;
@@ -134,6 +143,10 @@ export interface StoreState {
   cancelAddingStatusRecord: () => void;
   addSaleStatusRecord: (meteoriteId: string, newStatus: SaleStatus, remark: string, operator: string) => { success: boolean; reason?: string };
   getSaleStatusHistory: (meteoriteId: string) => SaleStatusRecord[];
+  saveFilterView: (name: string) => void;
+  deleteFilterView: (id: string) => void;
+  applyFilterView: (id: string) => void;
+  clearActiveFilterView: () => void;
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [
