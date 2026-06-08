@@ -174,6 +174,7 @@ export interface StoreState {
   deleteFilterView: (id: string) => void;
   applyFilterView: (id: string) => void;
   clearActiveFilterView: () => void;
+  resetToMockData: () => void;
 }
 
 export const METEORITE_CATEGORIES: MeteoriteCategory[] = [

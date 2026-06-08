@@ -3,6 +3,8 @@ import { StoreState, Meteorite, SaleStatus, ViewMode, DEFAULT_CAPACITY_LIMIT, Di
 import { mockMeteorites } from '@/data/mockData';
 
 const FILTER_VIEWS_STORAGE_KEY = 'meteorite-filter-views';
+const METEORITES_STORAGE_KEY = 'meteorite-collection-data';
+const DISPLAY_CASE_CAPACITIES_STORAGE_KEY = 'meteorite-display-case-capacities';
 
 const DEFAULT_SORT: SortState = {
   field: 'discoveredDate',
@@ -33,24 +35,62 @@ const persistFilterViews = (views: FilterView[]) => {
   }
 };
 
-const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
-  const weights = meteorites.map(m => m.weight);
-  return [Math.min(...weights), Math.max(...weights)];
+const loadMeteorites = (): Meteorite[] => {
+  try {
+    const stored = localStorage.getItem(METEORITES_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load meteorites from localStorage:', e);
+  }
+  return mockMeteorites;
 };
 
-const [minWeight, maxWeight] = calculateWeightRange(mockMeteorites);
+const persistMeteorites = (meteorites: Meteorite[]) => {
+  try {
+    localStorage.setItem(METEORITES_STORAGE_KEY, JSON.stringify(meteorites));
+  } catch (e) {
+    console.error('Failed to persist meteorites to localStorage:', e);
+  }
+};
 
-const getInitialDisplayCaseCapacities = (): Record<string, DisplayCaseCapacityConfig> => {
+const loadDisplayCaseCapacities = (fallbackMeteorites: Meteorite[]): Record<string, DisplayCaseCapacityConfig> => {
+  try {
+    const stored = localStorage.getItem(DISPLAY_CASE_CAPACITIES_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load display case capacities from localStorage:', e);
+  }
   const capacities: Record<string, DisplayCaseCapacityConfig> = {};
-  const displayCases = [...new Set(mockMeteorites.map(m => m.displayCase))];
+  const displayCases = [...new Set(fallbackMeteorites.map(m => m.displayCase))];
   displayCases.forEach(dc => {
     capacities[dc] = { capacityLimit: DEFAULT_CAPACITY_LIMIT };
   });
   return capacities;
 };
 
+const persistDisplayCaseCapacities = (capacities: Record<string, DisplayCaseCapacityConfig>) => {
+  try {
+    localStorage.setItem(DISPLAY_CASE_CAPACITIES_STORAGE_KEY, JSON.stringify(capacities));
+  } catch (e) {
+    console.error('Failed to persist display case capacities to localStorage:', e);
+  }
+};
+
+const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
+  const weights = meteorites.map(m => m.weight);
+  return [Math.min(...weights), Math.max(...weights)];
+};
+
+const initialMeteorites = loadMeteorites();
+const [minWeight, maxWeight] = calculateWeightRange(initialMeteorites);
+const initialDisplayCaseCapacities = loadDisplayCaseCapacities(initialMeteorites);
+
 export const useStore = create<StoreState>((set, get) => ({
-  meteorites: mockMeteorites,
+  meteorites: initialMeteorites,
   filters: {
     category: 'all',
     minWeight: 0,
@@ -68,7 +108,7 @@ export const useStore = create<StoreState>((set, get) => ({
   isAddingStatusRecord: false,
   pendingStatusRecord: null,
   viewMode: 'list' as ViewMode,
-  displayCaseCapacities: getInitialDisplayCaseCapacities(),
+  displayCaseCapacities: initialDisplayCaseCapacities,
   filterViews: loadFilterViews(),
   activeFilterViewId: null,
 
@@ -143,8 +183,11 @@ export const useStore = create<StoreState>((set, get) => ({
       if (!newCapacities[meteorite.displayCase]) {
         newCapacities[meteorite.displayCase] = { capacityLimit: DEFAULT_CAPACITY_LIMIT };
       }
+      const newMeteorites = [meteorite, ...state.meteorites];
+      persistMeteorites(newMeteorites);
+      persistDisplayCaseCapacities(newCapacities);
       return {
-        meteorites: [meteorite, ...state.meteorites],
+        meteorites: newMeteorites,
         displayCaseCapacities: newCapacities,
       };
     }),
@@ -165,10 +208,13 @@ export const useStore = create<StoreState>((set, get) => ({
       }
     });
 
-    set((state) => ({
-      meteorites: [...uniqueMeteorites, ...state.meteorites],
+    const finalMeteorites = [...uniqueMeteorites, ...existingMeteorites];
+    set({
+      meteorites: finalMeteorites,
       displayCaseCapacities: newCapacities,
-    }));
+    });
+    persistMeteorites(finalMeteorites);
+    persistDisplayCaseCapacities(newCapacities);
 
     return uniqueMeteorites.length;
   },
@@ -191,6 +237,8 @@ export const useStore = create<StoreState>((set, get) => ({
     }
 
     set({ meteorites: newMeteorites, displayCaseCapacities: newCapacities });
+    persistMeteorites(newMeteorites);
+    persistDisplayCaseCapacities(newCapacities);
     return updated;
   },
 
@@ -264,12 +312,16 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ viewMode: mode }),
 
   setDisplayCaseCapacity: (displayCase: string, capacityLimit: number) =>
-    set((state) => ({
-      displayCaseCapacities: {
+    set((state) => {
+      const newCapacities = {
         ...state.displayCaseCapacities,
         [displayCase]: { capacityLimit },
-      },
-    })),
+      };
+      persistDisplayCaseCapacities(newCapacities);
+      return {
+        displayCaseCapacities: newCapacities,
+      };
+    }),
 
   getDisplayCaseCapacityData: (): DisplayCaseCapacityData[] => {
     const { meteorites, displayCaseCapacities } = get();
@@ -339,6 +391,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const newMeteorites = meteorites.map((m) =>
       m.id === meteoriteId ? { ...m, saleStatus: newStatus } : m
     );
+    persistMeteorites(newMeteorites);
     set({
       meteorites: newMeteorites,
       isAddingStatusRecord: true,
@@ -361,6 +414,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const newMeteorites = meteorites.map((m) =>
       m.id === meteoriteId ? { ...m, saleStatus: originalStatus } : m
     );
+    persistMeteorites(newMeteorites);
     set({
       meteorites: newMeteorites,
       isAddingStatusRecord: false,
@@ -402,6 +456,7 @@ export const useStore = create<StoreState>((set, get) => ({
           }
         : m
     );
+    persistMeteorites(newMeteorites);
     set({
       meteorites: newMeteorites,
       isAddingStatusRecord: false,
@@ -458,6 +513,31 @@ export const useStore = create<StoreState>((set, get) => ({
 
   clearActiveFilterView: () => {
     set({ activeFilterViewId: null });
+  },
+
+  resetToMockData: () => {
+    const capacities: Record<string, DisplayCaseCapacityConfig> = {};
+    const displayCases = [...new Set(mockMeteorites.map(m => m.displayCase))];
+    displayCases.forEach(dc => {
+      capacities[dc] = { capacityLimit: DEFAULT_CAPACITY_LIMIT };
+    });
+    const [, newMax] = calculateWeightRange(mockMeteorites);
+    set({
+      meteorites: mockMeteorites,
+      displayCaseCapacities: capacities,
+      filters: {
+        category: 'all',
+        minWeight: 0,
+        maxWeight: newMax + 100,
+        saleStatus: 'all',
+      },
+      selectedMeteorite: null,
+      isModalOpen: false,
+      isEditing: false,
+    });
+    persistMeteorites(mockMeteorites);
+    persistDisplayCaseCapacities(capacities);
+    localStorage.removeItem(FILTER_VIEWS_STORAGE_KEY);
   },
 }));
 
