@@ -126,7 +126,7 @@ const BatchImportModal = () => {
 
   const generateSampleData = (): string => {
     const header = CSV_FIELDS.map(f => f.label).join(',');
-    
+
     const samples = [
       {
         id: 'MET-SAMPLE-001',
@@ -182,7 +182,7 @@ const BatchImportModal = () => {
       return value;
     };
 
-    const rows = samples.map(sample => 
+    const rows = samples.map(sample =>
       CSV_FIELDS.map(f => escapeCSV(sample[f.key as keyof typeof sample] || '')).join(',')
     );
 
@@ -200,7 +200,7 @@ const BatchImportModal = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
+
     setDownloadSuccess(true);
     setTimeout(() => setDownloadSuccess(false), 2000);
   };
@@ -307,14 +307,14 @@ const BatchImportModal = () => {
             <strong>必填字段：</strong>藏品编号、名称、分类、发现地、重量、证书编号、展示柜、发现日期、描述、图片地址
           </p>
         </div>
-        
+
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={handleDownloadTemplate}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-              downloadSuccess 
-                ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
+              downloadSuccess
+                ? 'bg-green-500/20 border border-green-500/30 text-green-400'
                 : 'bg-archive-gold/20 border border-archive-gold/30 text-archive-gold hover:bg-archive-gold/30'
             }`}
           >
@@ -325,13 +325,13 @@ const BatchImportModal = () => {
             )}
             <span className="text-sm">{downloadSuccess ? '下载成功' : '下载CSV模板'}</span>
           </button>
-          
+
           <button
             type="button"
             onClick={handleCopySampleData}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-              copySuccess 
-                ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
+              copySuccess
+                ? 'bg-green-500/20 border border-green-500/30 text-green-400'
                 : 'bg-archive-gold/20 border border-archive-gold/30 text-archive-gold hover:bg-archive-gold/30'
             }`}
           >
@@ -343,7 +343,7 @@ const BatchImportModal = () => {
             <span className="text-sm">{copySuccess ? '已复制到剪贴板' : '复制示例数据'}</span>
           </button>
         </div>
-        
+
         <div className="mt-3 p-3 bg-archive-cream/5 rounded-lg border border-archive-cream/10">
           <p className="text-archive-cream/50 text-xs">
             <strong className="text-archive-cream/70">提示：</strong>
