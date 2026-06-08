@@ -5,6 +5,7 @@ import { mockMeteorites } from '@/data/mockData';
 const FILTER_VIEWS_STORAGE_KEY = 'meteorite-filter-views';
 const METEORITES_STORAGE_KEY = 'meteorite-collection-data';
 const DISPLAY_CASE_CAPACITIES_STORAGE_KEY = 'meteorite-display-case-capacities';
+const PENDING_STATUS_RECORD_STORAGE_KEY = 'meteorite-pending-status-record';
 
 const DEFAULT_SORT: SortState = {
   field: 'discoveredDate',
@@ -80,12 +81,53 @@ const persistDisplayCaseCapacities = (capacities: Record<string, DisplayCaseCapa
   }
 };
 
+const loadPendingStatusRecord = (): StoreState['pendingStatusRecord'] => {
+  try {
+    const stored = localStorage.getItem(PENDING_STATUS_RECORD_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load pending status record from localStorage:', e);
+  }
+  return null;
+};
+
+const persistPendingStatusRecord = (record: StoreState['pendingStatusRecord']) => {
+  try {
+    if (record) {
+      localStorage.setItem(PENDING_STATUS_RECORD_STORAGE_KEY, JSON.stringify(record));
+    } else {
+      localStorage.removeItem(PENDING_STATUS_RECORD_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.error('Failed to persist pending status record to localStorage:', e);
+  }
+};
+
 const calculateWeightRange = (meteorites: Meteorite[]): [number, number] => {
   const weights = meteorites.map(m => m.weight);
   return [Math.min(...weights), Math.max(...weights)];
 };
 
-const initialMeteorites = loadMeteorites();
+const loadAndValidateMeteorites = (): Meteorite[] => {
+  const meteorites = loadMeteorites();
+  const pendingRecord = loadPendingStatusRecord();
+  
+  if (pendingRecord) {
+    const { meteoriteId, originalStatus } = pendingRecord;
+    const index = meteorites.findIndex(m => m.id === meteoriteId);
+    if (index !== -1 && meteorites[index].saleStatus !== originalStatus) {
+      meteorites[index] = { ...meteorites[index], saleStatus: originalStatus };
+      persistMeteorites(meteorites);
+    }
+    persistPendingStatusRecord(null);
+  }
+  
+  return meteorites;
+};
+
+const initialMeteorites = loadAndValidateMeteorites();
 const [minWeight, maxWeight] = calculateWeightRange(initialMeteorites);
 const initialDisplayCaseCapacities = loadDisplayCaseCapacities(initialMeteorites);
 
@@ -391,15 +433,17 @@ export const useStore = create<StoreState>((set, get) => ({
     const newMeteorites = meteorites.map((m) =>
       m.id === meteoriteId ? { ...m, saleStatus: newStatus } : m
     );
+    const pendingRecord = {
+      meteoriteId,
+      newStatus,
+      originalStatus,
+    };
     persistMeteorites(newMeteorites);
+    persistPendingStatusRecord(pendingRecord);
     set({
       meteorites: newMeteorites,
       isAddingStatusRecord: true,
-      pendingStatusRecord: {
-        meteoriteId,
-        newStatus,
-        originalStatus,
-      },
+      pendingStatusRecord: pendingRecord,
       selectedMeteorite: newMeteorites.find((m) => m.id === meteoriteId) || null,
     });
     return true;
@@ -415,6 +459,7 @@ export const useStore = create<StoreState>((set, get) => ({
       m.id === meteoriteId ? { ...m, saleStatus: originalStatus } : m
     );
     persistMeteorites(newMeteorites);
+    persistPendingStatusRecord(null);
     set({
       meteorites: newMeteorites,
       isAddingStatusRecord: false,
@@ -457,6 +502,7 @@ export const useStore = create<StoreState>((set, get) => ({
         : m
     );
     persistMeteorites(newMeteorites);
+    persistPendingStatusRecord(null);
     set({
       meteorites: newMeteorites,
       isAddingStatusRecord: false,
@@ -538,6 +584,7 @@ export const useStore = create<StoreState>((set, get) => ({
     persistMeteorites(mockMeteorites);
     persistDisplayCaseCapacities(capacities);
     localStorage.removeItem(FILTER_VIEWS_STORAGE_KEY);
+    persistPendingStatusRecord(null);
   },
 }));
 
