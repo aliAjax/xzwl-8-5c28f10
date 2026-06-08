@@ -2,7 +2,12 @@ import { create } from 'zustand';
 import type { StoreState } from '@/types';
 import { DEFAULT_SORT, DEFAULT_CAPACITY_LIMIT } from './constants';
 import { initializeStoreData, resetToMockData as createResetData, calculateWeightRange } from './initialization';
-import { persistFilterViews, persistPendingStatusRecord, clearAllStorage } from './storage';
+import {
+  FILTER_VIEWS_STORAGE_KEY,
+  persistDisplayCaseCapacities,
+  persistMeteorites,
+  persistPendingStatusRecord,
+} from './storage';
 import {
   createFilterSortSlice,
   createCertificateSearchSlice,
@@ -61,8 +66,9 @@ export const useStore = create<StoreState>((...args) => {
           maxWeight: newMax + 100,
         },
       });
-      clearAllStorage();
-      persistFilterViews([]);
+      persistMeteorites(resetData.meteorites);
+      persistDisplayCaseCapacities(resetData.displayCaseCapacities);
+      localStorage.removeItem(FILTER_VIEWS_STORAGE_KEY);
       persistPendingStatusRecord(null);
     },
   };

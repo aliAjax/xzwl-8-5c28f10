@@ -558,6 +558,23 @@ describe('Store - 基础操作', () => {
     const notFound = searchByCertificateNumber('NON-EXISTENT-CERT');
     expect(notFound).toBeUndefined();
   });
+
+  it('重置到模拟数据时保持原有localStorage持久化行为', () => {
+    localStorage.setItem('meteorite-filter-views', JSON.stringify([{ id: 'old-view' }]));
+    localStorage.setItem('meteorite-pending-status-record', JSON.stringify({ meteoriteId: 'old-id' }));
+
+    useStore.getState().resetToMockData();
+
+    const storedMeteorites = localStorage.getItem('meteorite-collection-data');
+    const storedCapacities = localStorage.getItem('meteorite-display-case-capacities');
+
+    expect(storedMeteorites).not.toBeNull();
+    expect(JSON.parse(storedMeteorites || '[]').length).toBe(useStore.getState().meteorites.length);
+    expect(storedCapacities).not.toBeNull();
+    expect(Object.keys(JSON.parse(storedCapacities || '{}')).length).toBeGreaterThan(0);
+    expect(localStorage.getItem('meteorite-filter-views')).toBeNull();
+    expect(localStorage.getItem('meteorite-pending-status-record')).toBeNull();
+  });
 });
 
 describe('Store - 筛选视图', () => {
