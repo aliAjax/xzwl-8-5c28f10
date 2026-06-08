@@ -20,9 +20,11 @@ import {
   Calendar,
   Image,
   Loader2,
+  Download,
+  Copy,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { ImportPreviewData, SALE_STATUS_LABELS, SALE_STATUS_COLORS, ImportError } from '@/types';
+import { ImportPreviewData, SALE_STATUS_LABELS, SALE_STATUS_COLORS, ImportError, METEORITE_CATEGORIES } from '@/types';
 import { parseAndValidateCSV, getRecognizedFields, getMissingRequiredFields } from '@/utils/importCSV';
 
 const FIELD_LABELS: Record<string, string> = {
@@ -65,6 +67,8 @@ const BatchImportModal = () => {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [importCount, setImportCount] = useState(0);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   const existingIds = useMemo(() => new Set(meteorites.map(m => m.id)), [meteorites]);
 
@@ -95,6 +99,121 @@ const BatchImportModal = () => {
     setExpandedRows(new Set());
     setShowErrorDetails(false);
     setImportCount(0);
+    setCopySuccess(false);
+    setDownloadSuccess(false);
+  };
+
+  const CSV_FIELDS = [
+    { key: 'id', label: '藏品编号' },
+    { key: 'name', label: '名称' },
+    { key: 'category', label: '分类' },
+    { key: 'location', label: '发现地' },
+    { key: 'weight', label: '重量(g)' },
+    { key: 'sliced', label: '切片状态' },
+    { key: 'certificateNumber', label: '证书编号' },
+    { key: 'displayCase', label: '展示柜' },
+    { key: 'saleStatus', label: '出售状态' },
+    { key: 'discoveredDate', label: '发现日期' },
+    { key: 'description', label: '描述' },
+    { key: 'imageUrl', label: '图片地址' },
+    { key: 'certificateInfo', label: '证书描述' },
+  ];
+
+  const generateCSVTemplate = (): string => {
+    const header = CSV_FIELDS.map(f => f.label).join(',');
+    return header + '\n';
+  };
+
+  const generateSampleData = (): string => {
+    const header = CSV_FIELDS.map(f => f.label).join(',');
+    
+    const samples = [
+      {
+        id: 'MET-SAMPLE-001',
+        name: '普通球粒陨石标本',
+        category: METEORITE_CATEGORIES[0],
+        location: '俄罗斯 车里雅宾斯克',
+        weight: '125.5',
+        sliced: '是',
+        certificateNumber: 'IMCA-2024-12345',
+        displayCase: 'A-01',
+        saleStatus: '在售',
+        discoveredDate: '2013-02-15',
+        description: '经典L5型普通球粒陨石，2013年坠落于俄罗斯车里雅宾斯克州。本标本重量125.5克，具有清晰的熔壳和气印特征。',
+        imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ordinary%20chondrite%20meteorite%20fragment%20with%20fusion%20crust%20on%20dark%20velvet%20background&image_size=square_hd',
+        certificateInfo: '国际陨石收藏家协会(IMCA)认证证书，编号IMCA-2024-12345。类型L5，风化等级W1。',
+      },
+      {
+        id: 'MET-SAMPLE-002',
+        name: '穆瓦西拉铁陨石',
+        category: METEORITE_CATEGORIES[3],
+        location: '纳米比亚 霍巴',
+        weight: '2500',
+        sliced: '是',
+        certificateNumber: 'MSN-2024-67890',
+        displayCase: 'B-02',
+        saleStatus: '预留',
+        discoveredDate: '1920-06-15',
+        description: '精品IVA组铁陨石切片，呈现经典的维德曼交角花纹。表面经过精细抛光和蚀刻处理，花纹清晰精美。',
+        imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=iron%20meteorite%20slice%20with%20Widmanstatten%20pattern%20polished%20etching%20museum%20display&image_size=square_hd',
+        certificateInfo: '陨石学会(MSN)认证，编号MSN-2024-67890。IVA组铁陨石，镍含量7.9%。',
+      },
+      {
+        id: 'MET-SAMPLE-003',
+        name: '阿连德碳质球粒陨石',
+        category: METEORITE_CATEGORIES[1],
+        location: '墨西哥 奇瓦瓦州',
+        weight: '45.2',
+        sliced: '否',
+        certificateNumber: 'IMCA-2024-54321',
+        displayCase: 'C-03',
+        saleStatus: '已售出',
+        discoveredDate: '1969-02-08',
+        description: '著名的CV3型碳质球粒陨石，1969年坠落于墨西哥。包含丰富的富钙铝包体(CAIs)，是太阳系最古老的物质之一。',
+        imageUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=carbonaceous%20chondrite%20meteorite%20fragment%20showing%20chondrules%20dark%20background&image_size=square_hd',
+        certificateInfo: '国际陨石收藏家协会(IMCA)认证证书，编号IMCA-2024-54321。类型CV3，含有多个毫米级CAIs。',
+      },
+    ];
+
+    const escapeCSV = (value: string): string => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
+
+    const rows = samples.map(sample => 
+      CSV_FIELDS.map(f => escapeCSV(sample[f.key as keyof typeof sample] || '')).join(',')
+    );
+
+    return [header, ...rows].join('\n') + '\n';
+  };
+
+  const handleDownloadTemplate = () => {
+    const csvContent = generateCSVTemplate();
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '陨石藏品导入模板.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    setDownloadSuccess(true);
+    setTimeout(() => setDownloadSuccess(false), 2000);
+  };
+
+  const handleCopySampleData = async () => {
+    const sampleData = generateSampleData();
+    try {
+      await navigator.clipboard.writeText(sampleData);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      alert('复制失败，请手动复制以下内容：\n\n' + sampleData);
+    }
   };
 
   const handleClose = () => {
@@ -186,6 +305,51 @@ const BatchImportModal = () => {
         <div className="mt-4 p-3 bg-archive-gold/10 rounded-lg border border-archive-gold/20">
           <p className="text-archive-gold text-xs">
             <strong>必填字段：</strong>藏品编号、名称、分类、发现地、重量、证书编号、展示柜、发现日期、描述、图片地址
+          </p>
+        </div>
+        
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
+              downloadSuccess 
+                ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
+                : 'bg-archive-gold/20 border border-archive-gold/30 text-archive-gold hover:bg-archive-gold/30'
+            }`}
+          >
+            {downloadSuccess ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span className="text-sm">{downloadSuccess ? '下载成功' : '下载CSV模板'}</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={handleCopySampleData}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
+              copySuccess 
+                ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
+                : 'bg-archive-gold/20 border border-archive-gold/30 text-archive-gold hover:bg-archive-gold/30'
+            }`}
+          >
+            {copySuccess ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
+            <span className="text-sm">{copySuccess ? '已复制到剪贴板' : '复制示例数据'}</span>
+          </button>
+        </div>
+        
+        <div className="mt-3 p-3 bg-archive-cream/5 rounded-lg border border-archive-cream/10">
+          <p className="text-archive-cream/50 text-xs">
+            <strong className="text-archive-cream/70">提示：</strong>
+            下载模板后填入数据，或复制示例数据直接粘贴到下方输入框，点击"预览数据"即可验证导入流程。
+            示例数据包含3条不同分类（{METEORITE_CATEGORIES[0]}、{METEORITE_CATEGORIES[3]}、{METEORITE_CATEGORIES[1]}）、
+            不同销售状态（在售、预留、已售出）和标准证书格式（IMCA-2024-XXXXX、MSN-2024-XXXXX）的陨石数据。
           </p>
         </div>
       </div>
